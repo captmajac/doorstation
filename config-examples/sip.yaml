@@ -1,0 +1,15 @@
+# SIP-Dienst der Türstation (Adapter zwischen Klingel/IP-Symcon und baresip)
+mqtt:
+  host: localhost
+  port: 1883
+  prefix: doorstation
+  heartbeat_s: 300          # Status alle 5 min wiederholen (Lebenszeichen), 0 = aus
+fritzbox: 192.168.178.1          # Registrar
+username: Tuerstation          # Benutzername des IP-Telefons **629 – ohne Umlaute!
+                               # Passwort: /etc/doorstation/secrets/sip_password
+default_target: "**701"        # Anrufziel, solange keins per set_target gesetzt ist; null = stumm
+ring_timeout_s: 30             # Auflegen, wenn niemand abnimmt
+max_call_s: 120                # Höchstdauer jedes Gesprächs
+cooldown_s: 5                  # Sperrzeit nach Gesprächsende
+healthcheck_s: 30              # Abfrageintervall baresip
+command_max_age_s: 30          # ältere call-Befehle (ts) werden verworfen

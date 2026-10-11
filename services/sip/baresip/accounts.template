@@ -1,0 +1,1 @@
+<sip:@USERNAME@@@FRITZBOX@>;auth_pass=@PASSWORD@;answermode=auto;audio_codecs=G722/16000/1,PCMA,PCMU;regint=300

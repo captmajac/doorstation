@@ -1,0 +1,15 @@
+# RFID/Home-Key-Dienst der Türstation
+mqtt:
+  host: localhost
+  port: 1883
+  prefix: doorstation
+  heartbeat_s: 300          # Status alle 5 min wiederholen (Lebenszeichen), 0 = aus
+nfc_path: "tty:AMA0:pn532"         # PN532 an der UART (VCC an 5 V, siehe docs/hardware.md)
+accessory_name: "NFC-Leser Briefkasten"
+express: true                     # iPhone muss nicht entsperrt werden
+finish: silver                    # Farbe der Wallet-Karte: silver | black | gold | tan
+flow: fast                        # fast | standard | attestation
+repeat_block_s: 3                 # dieselbe ID frühestens nach 3 s Pause erneut melden
+feedback_sound: beep              # Lese-Ton über den Sound-Dienst; leer = kein Ton
+state_dir: /var/lib/doorstation/rfid
+hap_port: 51926

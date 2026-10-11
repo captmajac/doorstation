@@ -1,0 +1,6 @@
+# Verbindung zur MQTT-Server-Instanz in IP-Symcon.
+# Nur flache "schlüssel: wert"-Zeilen. Passwort separat in /etc/doorstation/secrets/bridge_password
+host: 192.168.178.10
+port: 1026
+username: doorstation
+prefix: doorstation

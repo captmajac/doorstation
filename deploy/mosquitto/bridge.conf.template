@@ -1,0 +1,28 @@
+# Bridge der Türstation zu IP-Symcon – erzeugt von install.sh aus /etc/doorstation/bridge.yaml
+connection ips
+address @HOST@:@PORT@
+remote_username @USERNAME@
+remote_password @PASSWORD@
+remote_clientid doorstation-bridge
+cleansession false
+try_private false
+# Kein "@PREFIX@/# out 1": überlappende Regeln würden rfid/read mit QoS 1
+# puffern und nachliefern. Daher Bereiche einzeln. Ereignisse, die nach einem
+# Ausfall nicht verspätet ankommen dürfen (Klingel, RFID, DTMF "#" = Türöffner),
+# nur mit QoS 0. Geprüft von common/tests/test_bridge_template.py.
+topic @PREFIX@/event/# out 0
+topic @PREFIX@/gpio/# out 1
+topic @PREFIX@/sip/status out 1
+topic @PREFIX@/sip/error out 1
+topic @PREFIX@/sip/call out 1
+topic @PREFIX@/sip/target out 1
+topic @PREFIX@/sip/registration out 1
+topic @PREFIX@/sip/dtmf out 0
+topic @PREFIX@/sound/# out 1
+topic @PREFIX@/rfid/status out 1
+topic @PREFIX@/rfid/pairing out 1
+topic @PREFIX@/rfid/error out 1
+topic @PREFIX@/rfid/read out 0
+# Befehle mit QoS 0: der Server der Hausautomation puffert sie bei einem Ausfall
+# nicht und liefert sie nicht verspätet nach.
+topic @PREFIX@/+/cmd in 0

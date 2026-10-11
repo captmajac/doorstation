@@ -1,0 +1,41 @@
+[Unit]
+Description=Türstation: GPIO-Eingänge (Klingel, Bewegung, Briefkasten)
+Wants=network-online.target
+After=network-online.target mosquitto.service
+# Nie endgültig aufgeben: sonst klingelt nichts mehr.
+StartLimitIntervalSec=0
+
+[Service]
+User=doorstation
+ExecStart=/opt/doorstation/venv/gpio/bin/doorstation-gpio --config /etc/doorstation/gpio.yaml
+Restart=always
+RestartSec=2
+# Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten (bleibt stehen, Status offline)
+RestartPreventExitStatus=2
+
+# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+DevicePolicy=closed
+ProtectHome=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+DeviceAllow=char-gpiochip rw
+
+[Install]
+WantedBy=multi-user.target

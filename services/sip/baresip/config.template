@@ -1,0 +1,20 @@
+# baresip der Türstation – erzeugt von install.sh
+poll_method        epoll
+sip_listen         0.0.0.0:5060
+# Fester RTP-Bereich für den Paketfilter (deploy/nftables, doorstation-firewall)
+rtp_ports          10000-10099
+call_max_calls     1
+audio_player       alsa,default
+audio_source       alsa,default
+audio_alert        alsa,default
+module_path        /usr/lib/baresip/modules
+module             g711.so
+module             g722.so
+module             alsa.so
+module_tmp         account.so
+module_app         menu.so
+module_app         mqtt.so
+mqtt_broker_host   127.0.0.1
+mqtt_broker_port   1883
+mqtt_broker_clientid baresip
+mqtt_basetopic     baresip

@@ -1,0 +1,18 @@
+# Sound-Dienst der Türstation: Name → Datei. IP-Symcon wählt nur Namen, nie Dateipfade.
+# Tondateien (WAV/FLAC/OGG) nach /var/lib/doorstation/sounds kopieren und hier eintragen.
+mqtt:
+  host: localhost
+  port: 1883
+  prefix: doorstation
+  heartbeat_s: 300          # Status alle 5 min wiederholen (Lebenszeichen), 0 = aus
+default_volume: 0.8       # 0.0–1.0, wenn beim Ton und im Befehl nichts angegeben ist
+queue_size: 3             # wartende Töne; der älteste fällt heraus
+max_play_s: 120           # Abspielen wird spätestens nach dieser Zeit beendet
+target: ec_sink           # PipeWire-Ausgabe (Echounterdrückung des SIP-Dienstes)
+sounds:
+  beep:         { file: /var/lib/doorstation/sounds/beep.wav, volume: 0.6 }   # Lese-Ton (mitgeliefert)
+  post:         { file: /var/lib/doorstation/sounds/post.wav }
+  post_kurz:    { file: /var/lib/doorstation/sounds/post_fuer_dich.wav }
+  tuer_oeffnet: { file: /var/lib/doorstation/sounds/geoeffnet.wav }
+  paket_ablage: { file: /var/lib/doorstation/sounds/ablage.wav }
+  schrei:       { file: /var/lib/doorstation/sounds/SCREAM_4.wav, volume: 1.0 }

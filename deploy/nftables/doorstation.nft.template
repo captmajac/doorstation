@@ -1,0 +1,21 @@
+# Paketfilter der Türstation – erzeugt von install.sh aus /etc/doorstation/sip.yaml.
+# SIP (5060/5061, UDP und TCP) und RTP von baresip nur von der FritzBox annehmen: direkte
+# Anrufe aus dem LAN (auch mit gefälschtem Absender) erreichen baresip gar nicht erst.
+# Alle anderen Ports (SSH, HomeKit, mDNS …) bleiben unberührt.
+table inet doorstation
+delete table inet doorstation
+
+table inet doorstation {
+	set sip_ports {
+		type inet_service
+		flags interval
+		elements = { 5060-5061, @RTP_PORTS@ }
+	}
+
+	chain input {
+		type filter hook input priority filter - 10; policy accept;
+		iif "lo" accept
+		ip saddr @FRITZBOX@ meta l4proto { udp, tcp } th dport @sip_ports accept
+		meta l4proto { udp, tcp } th dport @sip_ports counter drop
+	}
+}

@@ -1,0 +1,11 @@
+# Audio der Türstation – ausgewertet von doorstation-audio-init vor jedem Start von baresip.
+# Karten und Reglernamen anzeigen:  sudo ./install.sh audio-info
+card_match: "USB"            # Teil des ALSA-Kartennamens (nie die Kartennummer, die wechselt)
+playback_control: Headphone  # Briefkasten-Stick 0d8c:000c: "Headphone"; Test-Stick 0d8c:0014: "Speaker"
+playback_percent: 80         # Lautsprecherpegel 0–100 %
+capture_control: Mic
+capture_percent: 50          # Mikrofonpegel 0–100 %
+auto_gain_control: false     # Hardware-Pegelautomatik des Sticks (true/false; fehlt der Regler, ignoriert)
+mic_playback: false          # Mikrofon direkt auf Lautsprecher (Mithören) – immer aus lassen
+echo_cancel:                 # PipeWire-Echounterdrückung (Feinwerte in deploy/pipewire/60-echo-cancel.conf)
+  enabled: true

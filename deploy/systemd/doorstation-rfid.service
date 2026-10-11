@@ -1,0 +1,44 @@
+[Unit]
+Description=Türstation: RFID/Home-Key-Leser (PN532)
+Wants=network-online.target
+After=network-online.target mosquitto.service
+# Nie endgültig aufgeben (z. B. Leser kurz abgezogen).
+StartLimitIntervalSec=0
+
+[Service]
+User=doorstation
+ExecStart=/opt/doorstation/venv/rfid/bin/doorstation-rfid --config /etc/doorstation/rfid.yaml
+Restart=always
+RestartSec=2
+# Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten (bleibt stehen, Status offline)
+RestartPreventExitStatus=2
+
+# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+DevicePolicy=closed
+ProtectHome=yes
+RestrictRealtime=yes
+# AF_NETLINK: zeroconf (HomeKit) liest die Netzwerkschnittstellen
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+# PN532 an der UART (nfc_path tty:AMA0); state_dir muss hier liegen
+DeviceAllow=char-ttyAMA rw
+ReadWritePaths=/var/lib/doorstation/rfid
+
+[Install]
+WantedBy=multi-user.target

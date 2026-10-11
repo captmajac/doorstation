@@ -1,0 +1,6 @@
+doorstation
+Copyright 2026 MArC
+
+This product includes software from kormax/apple-home-key-reader
+(https://github.com/kormax/apple-home-key-reader), licensed under the
+Apache License, Version 2.0. See services/rfid/doorstation_rfid/vendor/.

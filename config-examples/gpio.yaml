@@ -1,0 +1,18 @@
+# GPIO-Dienst der Türstation – Pins in BCM-Nummerierung (physischer Pin in Klammern).
+# Empfohlene Beschaltung: Taster und Reedkontakte schalten gegen GND (active: low, pull: up),
+# der Bewegungsmelder HC-SR501 liefert bei Bewegung 3,3 V (active: high). Siehe docs/hardware.md.
+mqtt:
+  host: localhost
+  port: 1883
+  prefix: doorstation
+  heartbeat_s: 300          # Status alle 5 min wiederholen (Lebenszeichen), 0 = aus
+chip: /dev/gpiochip0
+inputs:
+  # Klingeltaster (Pin 21)
+  bell:      { pin: 9,  kind: button, trigger: press, active: low,  pull: up,  debounce_ms: 50,  min_interval_s: 2,  ring: true, report_release: true }
+  # Bewegungsmelder HC-SR501 (Pin 26)
+  motion:    { pin: 7,  kind: state,  active: high, pull: off, debounce_ms: 0,   min_interval_s: 10, states: [idle, motion] }
+  # Reedkontakt Briefklappe (Pin 35)
+  mail_flap: { pin: 19, kind: state,  active: low,  pull: up,  debounce_ms: 200, min_interval_s: 1,  states: [closed, open] }
+  # Reedkontakt Kastentür (Pin 33)
+  mail_door: { pin: 13, kind: state,  active: low,  pull: up,  debounce_ms: 200, min_interval_s: 1,  states: [closed, open] }
