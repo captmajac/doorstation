@@ -34,9 +34,9 @@ class FakeClf:
     def open(self, path):
         if self.open_fails:
             self.open_fails -= 1
-            raise OSError("kein Leser")
+            raise OSError("no reader")
         self.opened += 1
-        self.device = object()  # wie nfcpy nach erfolgreichem Öffnen
+        self.device = object()  # like nfcpy after a successful open
 
 
 class FakeRepo:
@@ -45,7 +45,7 @@ class FakeRepo:
         self.upserted = []
 
     def get_reader_private_key(self):
-        return b"\x01" * 32 if self.paired else b"\x00" * 32  # wie kormax ohne Paarung
+        return b"\x01" * 32 if self.paired else b"\x00" * 32  # like kormax without pairing
 
     def get_reader_group_identifier(self):
         return b"\x02" * 8
@@ -120,7 +120,7 @@ def test_homekey_reported():
 def test_exception_reopens_reader():
     loop, clf, rep, health, sleeps = make([OSError(5, "Input/output error"), FakeTarget("b3c06fa5", False)])
     loop.step()
-    assert (clf.closed, clf.opened, health) == (1, 1, [])  # ein Einzelfehler meldet kein degraded
+    assert (clf.closed, clf.opened, health) == (1, 1, [])  # a single error does not report degraded
     loop.step()
     assert rep.reports == [("card", "B3C06FA5")] and health[-1] is True
 
@@ -156,7 +156,7 @@ def test_open_without_device_counts_as_failure():
 
     def open_no_device(path):
         clf.opened += 1
-        clf.device = None  # so meldet nfcpy einen nicht gefundenen Leser
+        clf.device = None  # this is how nfcpy reports a reader not found
 
     clf.open = open_no_device
     loop.step()
@@ -165,7 +165,7 @@ def test_open_without_device_counts_as_failure():
 
 def test_zero_key_means_unpaired():
     loop, clf, rep, health, sleeps = make([FakeTarget("b3c06fa5", False)], paired=False)
-    loop.service.repository.get_reader_private_key = lambda: b"\x00" * 32  # kormax-Vorgabe ohne Paarung
+    loop.service.repository.get_reader_private_key = lambda: b"\x00" * 32  # kormax default without pairing
     assert loop.paired is False
     loop.step()
     assert clf.sense_kwargs[-1] == {}
@@ -193,12 +193,12 @@ def test_no_broadcast_right_after_homekey():
                                           homekey=("FAST", [], endpoint))
     t = [1000.0]
     loop._clock = lambda: t[0]
-    loop.step()                      # Home Key gelesen
+    loop.step()                      # Home Key read
     t[0] += 1
-    loop.step()                      # innerhalb der Sperre: ohne Express-Broadcast
+    loop.step()                      # within the block: no Express broadcast
     assert clf.sense_kwargs[-1] == {}
     t[0] += 3
-    loop.step()                      # danach wieder mit Broadcast
+    loop.step()                      # afterwards with broadcast again
     assert clf.sense_kwargs[-1] == {"broadcast": b"ECP"}
 
 

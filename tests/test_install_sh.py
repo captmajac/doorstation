@@ -1,4 +1,4 @@
-"""Tests für install.sh: einzelne Funktionen werden in bash eingelesen und ohne root aufgerufen."""
+"""Tests for install.sh: single functions are sourced into bash and called without root."""
 
 import os
 import subprocess
@@ -28,7 +28,7 @@ def test_config_line_appended_under_existing_all(tmp_path):
 
 
 def test_config_line_gets_all_section_when_file_ends_in_model_section(tmp_path):
-    # Sonst gälte die Zeile nur für [pi5] – auf Pi 3/4 bliebe die UART aus.
+    # Otherwise the line would only apply to [pi5] - the UART would stay off on Pi 3/4.
     f = tmp_path / "config.txt"
     f.write_text("arm_64bit=1\n[pi5]\ndtoverlay=nospi10\n")
     bash(f'config_txt_add "{f}" enable_uart=1', tmp_path)
@@ -86,7 +86,7 @@ def test_bridge_rejects_prefix_with_wildcard(tmp_path):
 
 
 def test_broken_bridge_is_rolled_back_and_mosquitto_keeps_running(tmp_path):
-    # Startet Mosquitto mit der neuen Bridge nicht, gälte sonst gar nichts mehr – auch die Klingel nicht.
+    # If Mosquitto does not start with the new bridge, nothing would work - not even the bell.
     dst = tmp_path / "bridge.conf"
     dst.write_text("OLD\n")
     new = tmp_path / "new.conf"
@@ -97,7 +97,7 @@ systemctl() {{ if [ "$1" = restart ] && grep -q BROKEN "{dst}" 2>/dev/null; then
 apply_mosquitto_conf "{new}" "{dst}"; echo "rc=$?"''', tmp_path)
     assert "rc=0" in r.stdout
     assert dst.read_text() == "OLD\n"
-    assert "WARNUNG" in r.stderr
+    assert "WARNING" in r.stderr
 
 
 def test_broken_new_bridge_without_previous_is_removed(tmp_path):
@@ -112,22 +112,22 @@ apply_mosquitto_conf "{new}" "{dst}"; echo "rc=$?"''', tmp_path)
     assert not dst.exists()
 
 
-# --- SIP ohne Passwort ----------------------------------------------------------
+# --- SIP without password -------------------------------------------------------
 
 def test_sip_without_password_is_skipped_not_fatal(tmp_path):
-    # Frische Installation: Passwort kommt erst später – sound und rfid müssen trotzdem installiert werden.
+    # Fresh installation: the password comes later - sound and rfid must be installed anyway.
     (tmp_path / "etc" / "secrets").mkdir(parents=True)
     r = bash('''
 install_python_package() { echo CALLED-PIP; return 1; }
 install_sip; echo "rc=$?"''', tmp_path)
     assert "rc=0" in r.stdout
     assert "CALLED-PIP" not in r.stdout
-    assert "WARNUNG" in r.stderr and "sip_password" in r.stderr
+    assert "WARNING" in r.stderr and "sip_password" in r.stderr
     assert "docs/installation.md" in r.stderr
 
 
 def test_sip_password_with_account_separators_is_rejected(tmp_path):
-    # ";" oder ">" zerlegen die baresip-accounts-Zeile – Anmeldung schlüge still fehl.
+    # ";" or ">" break the baresip accounts line - registration would fail silently.
     (tmp_path / "etc" / "secrets").mkdir(parents=True)
     (tmp_path / "etc" / "secrets" / "sip_password").write_text("geheim;answermode=manual\n")
     r = bash('''
@@ -135,4 +135,4 @@ install_python_package() { echo CALLED-PIP; return 1; }
 install_sip; echo "rc=$?"''', tmp_path)
     assert "rc=0" in r.stdout
     assert "CALLED-PIP" not in r.stdout
-    assert "WARNUNG" in r.stderr and "Zeichen" in r.stderr
+    assert "WARNING" in r.stderr and "character" in r.stderr

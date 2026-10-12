@@ -1,4 +1,4 @@
-"""Eingangslogik ohne Hardware: Aktiv-Pegel, Flanken, Drosselung mit Nachlauf."""
+"""Input logic without hardware: active level, edges, throttling with trailing update."""
 
 import time
 from collections.abc import Callable
@@ -7,7 +7,7 @@ from .config import InputConfig
 
 
 class ButtonInput:
-    """Taster: ein Ereignis pro konfigurierter Flanke, gedrosselt durch min_interval_s."""
+    """Button: one event per configured edge, throttled by min_interval_s."""
 
     def __init__(self, cfg: InputConfig, clock: Callable[[], float] = time.monotonic) -> None:
         self.cfg = cfg
@@ -18,7 +18,7 @@ class ButtonInput:
         self._release_pending = False
 
     def initial(self, raw_high: bool) -> None:
-        """Startpegel übernehmen, ohne ein Ereignis auszulösen."""
+        """Take the initial level without emitting an event."""
         self._pressed = raw_high == (self.cfg.active == "high")
 
     def on_level(self, raw_high: bool) -> bool:
@@ -39,13 +39,13 @@ class ButtonInput:
         return True
 
     def pop_release(self) -> bool:
-        """True, wenn ein gemeldetes Drücken losgelassen wurde (nur mit report_release)."""
+        """True if a reported press was released (only with report_release)."""
         due, self._release_pending = self._release_pending, False
         return due
 
 
 class StateInput:
-    """Zustand: erster Wechsel sofort, weitere innerhalb min_interval_s erst per poll()."""
+    """State: first change immediately, further changes within min_interval_s only via poll()."""
 
     def __init__(self, cfg: InputConfig, clock: Callable[[], float] = time.monotonic) -> None:
         assert cfg.states is not None

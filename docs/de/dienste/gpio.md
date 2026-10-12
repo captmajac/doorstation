@@ -1,3 +1,5 @@
+[English](../../services/gpio.md) | **Deutsch**
+
 # Dienst `gpio`
 
 Liest Klingeltaster, Bewegungsmelder und Briefkastenkontakte, entprellt und drosselt sie und meldet jede Änderung per MQTT. Der Dienst trifft keine fachlichen Entscheidungen – ob angerufen wird, entscheidet `sip`; was „Post da“ bedeutet, die Hausautomation.

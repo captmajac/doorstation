@@ -1,3 +1,5 @@
+[English](../../services/sip.md) | **Deutsch**
+
 # Dienst `sip`
 
 Sprechverbindung zwischen Tür und Haustelefonen über die FritzBox:

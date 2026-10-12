@@ -1,4 +1,4 @@
-"""Konfiguration des SIP-Adapters (/etc/doorstation/sip.yaml)."""
+"""Configuration of the SIP adapter (/etc/doorstation/sip.yaml)."""
 
 import re
 from dataclasses import dataclass
@@ -36,23 +36,23 @@ def load_config(path: Path) -> SipConfig:
     data = load_yaml(path)
     unknown = sorted(set(data) - _KEYS)
     if unknown:
-        raise ConfigError(f"{path}: unbekannte Schlüssel {', '.join(unknown)}")
+        raise ConfigError(f"{path}: unknown keys {', '.join(unknown)}")
     for key in ("fritzbox", "username"):
         if not isinstance(data.get(key), str) or not data[key]:
-            raise ConfigError(f"{path}: '{key}' fehlt")
+            raise ConfigError(f"{path}: '{key}' missing")
     if not USERNAME_RE.fullmatch(data["username"]):
-        raise ConfigError(f"{path}: username darf nur A–Z, a–z, 0–9, . _ - enthalten (keine Umlaute)")
+        raise ConfigError(f"{path}: username may only contain A-Z, a-z, 0-9, . _ - (no umlauts)")
     kwargs: dict = {}
     if "default_target" in data:
         t = data["default_target"]
         if t is not None and not valid_target(t):
-            raise ConfigError(f"{path}: default_target '{t}' ungültig (nur Ziffern, * und #, oder null)")
+            raise ConfigError(f"{path}: default_target '{t}' invalid (digits, * and # only, or null)")
         kwargs["default_target"] = t
     for key in _NUMBERS:
         if key in data:
             v = data[key]
             if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
-                raise ConfigError(f"{path}: {key} muss eine Zahl > 0 sein")
+                raise ConfigError(f"{path}: {key} must be a number > 0")
             kwargs[key] = float(v)
     if "state_dir" in data:
         kwargs["state_dir"] = Path(str(data["state_dir"]))

@@ -1,6 +1,6 @@
-"""doorstation-audio-init: USB-Soundkarte finden, Schalter und Pegel setzen, Echo-Cancel als Standard.
+"""doorstation-audio-init: find the USB sound card, set switches and levels, make echo cancel the default.
 
-Läuft als ExecStartPre von doorstation-baresip unter dem Benutzer doorstation.
+Runs as ExecStartPre of doorstation-baresip as user doorstation.
 """
 
 import argparse
@@ -38,30 +38,30 @@ def load_audio_config(path: Path) -> AudioConfig:
                "capture_percent", "auto_gain_control", "mic_playback", "echo_cancel"}
     unknown = sorted(set(data) - allowed)
     if unknown:
-        raise ConfigError(f"{path}: unbekannte Schlüssel {', '.join(unknown)}")
+        raise ConfigError(f"{path}: unknown keys {', '.join(unknown)}")
     for key in ("card_match", "playback_control", "capture_control"):
         if not isinstance(data.get(key), str) or not data[key]:
-            raise ConfigError(f"{path}: '{key}' fehlt")
+            raise ConfigError(f"{path}: '{key}' missing")
     for key in ("playback_percent", "capture_percent"):
         v = data.get(key)
         if not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 100:
-            raise ConfigError(f"{path}: {key} muss eine ganze Zahl 0–100 sein")
+            raise ConfigError(f"{path}: {key} must be an integer 0-100")
     agc = data.get("auto_gain_control")
     if agc is not None and not isinstance(agc, bool):
-        raise ConfigError(f"{path}: auto_gain_control muss true, false oder leer sein")
+        raise ConfigError(f"{path}: auto_gain_control must be true, false or empty")
     mic_playback = data.get("mic_playback", False)
-    if not isinstance(mic_playback, bool):  # bool("false") wäre wahr: Mikrofon auf den Lautsprecher
-        raise ConfigError(f"{path}: mic_playback muss true oder false sein")
+    if not isinstance(mic_playback, bool):  # bool("false") would be true: microphone to the speaker
+        raise ConfigError(f"{path}: mic_playback must be true or false")
     ec = data.get("echo_cancel", {"enabled": True})
     ec_enabled = ec.get("enabled", True) if isinstance(ec, dict) else ec
     if not isinstance(ec_enabled, bool):
-        raise ConfigError(f"{path}: echo_cancel.enabled muss true oder false sein")
+        raise ConfigError(f"{path}: echo_cancel.enabled must be true or false")
     return AudioConfig(data["card_match"], data["playback_control"], data["playback_percent"],
                        data["capture_control"], data["capture_percent"], agc, mic_playback, ec_enabled)
 
 
 def find_card(proc_cards_text: str, match: str) -> int | None:
-    """Erste Karte, deren Kurz- oder Langname 'match' enthält (ohne Groß/Klein)."""
+    """First card whose short or long name contains 'match' (case-insensitive)."""
     lines = proc_cards_text.splitlines()
     needle = match.lower()
     for i, line in enumerate(lines):
@@ -77,7 +77,7 @@ def find_card(proc_cards_text: str, match: str) -> int | None:
 
 def wait_for_card(read_cards, match: str, timeout: float,
                   clock=time.monotonic, sleep=time.sleep) -> int | None:
-    """Wartet bis 'timeout' Sekunden, bis eine passende Karte erscheint (USB beim Booten spät)."""
+    """Waits up to 'timeout' seconds for a matching card (USB may appear late at boot)."""
     deadline = clock() + timeout
     while True:
         card = find_card(read_cards(), match)
@@ -87,7 +87,7 @@ def wait_for_card(read_cards, match: str, timeout: float,
 
 
 def plan_commands(cfg: AudioConfig, card: int, controls: set[str]) -> list[list[str]]:
-    """amixer-Befehle für die Schalter; nur für Regler, die der Stick hat."""
+    """amixer commands for the switches; only for controls the stick has."""
     c = str(card)
     cmds: list[list[str]] = []
     if cfg.auto_gain_control is not None and "Auto Gain Control" in controls:
@@ -99,7 +99,7 @@ def plan_commands(cfg: AudioConfig, card: int, controls: set[str]) -> list[list[
 
 
 def nodes_for_card(dump: list, card: int) -> tuple[int | None, int | None]:
-    """IDs des Audio/Sink- und Audio/Source-Knotens der ALSA-Karte aus pw-dump."""
+    """IDs of the card's Audio/Sink and Audio/Source nodes from pw-dump."""
     sink = source = None
     for obj in dump:
         props = (obj.get("info") or {}).get("props") or {}
@@ -135,27 +135,27 @@ def _pw_dump() -> list:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="doorstation-audio-init")
     parser.add_argument("--config", type=Path, default=Path("/etc/doorstation/audio.yaml"))
-    parser.add_argument("--wait", type=float, default=15.0, help="Sekunden auf PipeWire warten")
+    parser.add_argument("--wait", type=float, default=15.0, help="seconds to wait for PipeWire")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     try:
         cfg = load_audio_config(args.config)
     except ConfigError as exc:
-        print(f"Konfigurationsfehler: {exc}", file=sys.stderr)
+        print(f"configuration error: {exc}", file=sys.stderr)
         return 2
 
     card = wait_for_card(lambda: Path("/proc/asound/cards").read_text(), cfg.card_match, args.wait)
     if card is None:
-        log.error("keine Soundkarte passt zu card_match '%s'", cfg.card_match)
+        log.error("no sound card matches card_match '%s'", cfg.card_match)
         return 1
     out = _run(["amixer", "-c", str(card), "scontrols"]).stdout
     controls = set(re.findall(r"'([^']+)'", out))
     for name in (cfg.playback_control, cfg.capture_control):
         if name not in controls:
-            log.warning("Regler '%s' gibt es auf Karte %d nicht (vorhanden: %s)", name, card, ", ".join(sorted(controls)))
+            log.warning("control '%s' does not exist on card %d (available: %s)", name, card, ", ".join(sorted(controls)))
     for cmd in plan_commands(cfg, card, controls):
         if _run(cmd).returncode != 0:
-            log.warning("fehlgeschlagen: %s", " ".join(cmd))
+            log.warning("failed: %s", " ".join(cmd))
 
     deadline = time.monotonic() + args.wait
     while True:
@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
             break
         time.sleep(0.5)
     if sink is None or source is None:
-        log.error("PipeWire zeigt die Karte %d nicht – läuft PipeWire für diesen Benutzer?", card)
+        log.error("PipeWire does not show card %d - is PipeWire running for this user?", card)
         return 1
     _run(["wpctl", "set-volume", str(sink), f"{cfg.playback_percent / 100:.2f}"])
     _run(["wpctl", "set-volume", str(source), f"{cfg.capture_percent / 100:.2f}"])
@@ -176,11 +176,11 @@ def main(argv: list[str] | None = None) -> int:
         _run(["wpctl", "set-default", str(ec_source)])
     else:
         if cfg.echo_cancel:
-            log.warning("Echo-Cancel-Knoten fehlen – nutze die Karte direkt")
+            log.warning("echo cancel nodes missing - using the card directly")
         _run(["wpctl", "set-default", str(sink)])
         _run(["wpctl", "set-default", str(source)])
-    log.info("Audio bereit: Karte %d, Pegel %d %%/%d %%, Echounterdrückung %s",
-             card, cfg.playback_percent, cfg.capture_percent, "an" if cfg.echo_cancel and ec_sink else "aus")
+    log.info("audio ready: card %d, levels %d %%/%d %%, echo cancel %s",
+             card, cfg.playback_percent, cfg.capture_percent, "on" if cfg.echo_cancel and ec_sink else "off")
     return 0
 
 

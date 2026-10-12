@@ -26,11 +26,11 @@ def test_root_logger_info_is_not_written():
     from doorstation_rfid.__main__ import configure_logging
     buf = io.StringIO()
     configure_logging(buf)
-    logging.getLogger().info("shared_key=0011 kenc=22")       # so loggt kormax
-    logging.getLogger("doorstation_rfid.loop").info("Karte gemeldet")
+    logging.getLogger().info("shared_key=0011 kenc=22")       # this is how kormax logs
+    logging.getLogger("doorstation_rfid.loop").info("card reported")
     out = buf.getvalue()
     assert "kenc" not in out and "shared_key" not in out
-    assert "Karte gemeldet" in out
+    assert "card reported" in out
 
 
 def _watch(tmp_path, paired):
@@ -51,9 +51,9 @@ def _pairing(c):
 
 
 def test_pairing_watch_survives_errors(tmp_path):
-    # Eine Ausnahme darf den Überwachungs-Thread nicht beenden (sonst keine Paarungsmeldung mehr).
+    # An exception must not end the watch thread (otherwise no more pairing reports).
     def boom():
-        raise RuntimeError("Repository kaputt")
+        raise RuntimeError("repository broken")
     c, w = _watch(tmp_path, boom)
     w.check()
     w.check()
@@ -65,7 +65,7 @@ def test_pairing_reported_on_change_and_after_reconnect(tmp_path):
     w.check()
     w.check()
     assert _pairing(c) == [True]
-    w.republish()          # z. B. nach Wiederverbindung zum Broker
+    w.republish()          # e.g. after reconnecting to the broker
     w.check()
     assert _pairing(c) == [True, True]
     state["paired"] = False

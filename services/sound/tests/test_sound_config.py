@@ -11,9 +11,9 @@ ROOT = Path(__file__).parents[3]
 
 def test_example_loads():
     cfg = load_config(ROOT / "config-examples/sound.yaml")
-    assert cfg.sounds["beep"].volume == 0.6 and cfg.sounds["post"].volume is None
+    assert cfg.sounds["beep"].volume == 0.6 and cfg.sounds["you_have_mail"].volume is None
     assert (cfg.target, cfg.queue_size, cfg.default_volume) == ("ec_sink", 3, 0.8)
-    assert set(cfg.sounds) == {"beep", "post", "post_kurz", "tuer_oeffnet", "paket_ablage", "schrei"}
+    assert set(cfg.sounds) == {"beep", "you_have_mail", "door_opening", "parcel_dropoff", "easteregg_halloween"}
 
 
 def write(tmp_path, body):

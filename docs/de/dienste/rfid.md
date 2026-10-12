@@ -1,3 +1,5 @@
+[English](../../services/rfid.md) | **Deutsch**
+
 # Dienst `rfid`
 
 Liest mit einem PN532 RFID-Karten, AirTags und **Apple Home Key** (iPhone/Apple Watch aus dem Wallet, auch gesperrt per Express-Modus) und meldet eine **stabile ID** per MQTT. Ob die Tür öffnet, entscheidet die Hausautomation. Nach jedem gemeldeten Lesevorgang wird lokal der Lese-Ton (`sound/cmd` `beep`) ausgelöst.
@@ -24,7 +26,7 @@ Unit: `doorstation-rfid` · Konfiguration: `/etc/doorstation/rfid.yaml` · Grund
 ```yaml
 mqtt: { host: localhost, port: 1883, prefix: doorstation, heartbeat_s: 300 }
 nfc_path: "tty:AMA0:pn532"   # andere Leser (USB) brauchen ein DeviceAllow in der Unit
-accessory_name: "NFC-Leser Briefkasten"
+accessory_name: "Mailbox NFC Reader"
 express: true              # iPhone muss nicht entsperrt werden
 finish: silver             # Farbe der Wallet-Karte: silver | black | gold | tan
 flow: fast                 # fast | standard | attestation
@@ -38,7 +40,7 @@ hap_port: 51926
 
 Der Leser meldet sich in Apple Home als **Schloss** an; nur so kommt der Hausschlüssel ins Wallet. Das Schloss bleibt immer „verriegelt“, ändert sich beim Vorhalten nicht (keine Mitteilung „aufgesperrt“) und springt bei „Aufschließen“ sofort zurück.
 
-1. Kopplungscode anzeigen: `journalctl -u doorstation-rfid | grep Kopplungscode`
+1. Kopplungscode anzeigen: `journalctl -u doorstation-rfid | grep "setup code"`
 2. Home-App → „+“ → Gerät hinzufügen → **Weitere Optionen** → NFC-Schloss wählen → Code eingeben → „Trotzdem hinzufügen“.
 3. Den angebotenen **Hausschlüssel ins Wallet** übernehmen. Alle Mitglieder des Zuhauses erhalten ihn.
 4. Empfehlung: das Schloss einem eigenen Raum zuordnen, aus Übersicht und Favoriten nehmen, Mitteilungen abschalten – und es eindeutig benennen, damit Siri es nicht mit dem echten Türschloss verwechselt.

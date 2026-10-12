@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Überträgt das Repo auf den Test-Pi und führt dort pytest aus.
-# Aufruf: scripts/pi-test.sh [pytest-Argumente]
+# Copies the repo to the test Pi and runs pytest there.
+# Usage: scripts/pi-test.sh [pytest arguments]
 set -euo pipefail
 HOST="${DOORSTATION_TEST_HOST:-doorstation-test}"
 cd "$(dirname "$0")/.."

@@ -1,5 +1,5 @@
-# Verbindung zur MQTT-Server-Instanz in IP-Symcon.
-# Nur flache "schlüssel: wert"-Zeilen. Passwort separat in /etc/doorstation/secrets/bridge_password
+# Connection to the MQTT server instance of the home automation (IP-Symcon).
+# Flat "key: value" lines only. Password separately in /etc/doorstation/secrets/bridge_password
 host: 192.168.178.10
 port: 1026
 username: doorstation

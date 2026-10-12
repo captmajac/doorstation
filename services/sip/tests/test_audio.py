@@ -84,7 +84,7 @@ def test_wait_for_card_retries_until_present():
     ("echo_cancel: yes-please\n", "echo_cancel"),
 ])
 def test_switches_must_be_real_booleans(tmp_path, extra, field):
-    # bool("false") wäre wahr: Mikrofon direkt auf den Lautsprecher (Rückkopplung).
+    # bool("false") would be true: microphone straight to the speaker (feedback).
     p = tmp_path / "a.yaml"
     p.write_text("card_match: USB\nplayback_control: X\nplayback_percent: 50\ncapture_control: Mic\n"
                  "capture_percent: 50\n" + extra)

@@ -1,4 +1,4 @@
-"""Abspielen: pw-play über PipeWire (echter Pi) bzw. Attrappe (Tests)."""
+"""Playback: pw-play via PipeWire (real Pi) or fake player (tests)."""
 
 import logging
 import subprocess
@@ -73,6 +73,6 @@ class FakePlayer:
         return self._failed
 
     def finish(self, ok: bool = True) -> None:
-        """Testhilfe: laufenden Ton beenden (erfolgreich oder mit Fehler)."""
+        """Test helper: end the current sound (successfully or with an error)."""
         self._playing = False
         self._failed = None if ok else "Exit 1"

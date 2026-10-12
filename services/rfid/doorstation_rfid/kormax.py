@@ -1,7 +1,7 @@
-"""Einbindung von kormax/apple-home-key-reader (unverändert unter vendor/, siehe vendor/README.md).
+"""Integration of kormax/apple-home-key-reader (unchanged in vendor/, see vendor/README.md).
 
-kormax nutzt Top-Level-Importe (``from service import Service``), daher kommt der
-Vendor-Ordner vorn in sys.path.
+kormax uses top-level imports (``from service import Service``), so the vendor
+directory goes first in sys.path.
 """
 
 import sys

@@ -1,4 +1,4 @@
-"""Startpunkt: doorstation-sip [--config PFAD]"""
+"""Entry point: doorstation-sip [--config PATH]"""
 
 import argparse
 import logging
@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cfg = load_config(args.config)
     except ConfigError as exc:
-        print(f"Konfigurationsfehler: {exc}", file=sys.stderr)
+        print(f"configuration error: {exc}", file=sys.stderr)
         return 2
 
     stop = threading.Event()
@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     service = SipService(cfg, mqtt, store)
     service.start()
     mqtt.start()
-    log.info("gestartet, Ziel %s", service.target or "stumm")
+    log.info("started, target %s", service.target or "muted")
     try:
         while not stop.is_set():
             service.step(0.2)

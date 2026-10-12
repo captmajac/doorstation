@@ -52,9 +52,9 @@ def cmds(c, skip_start=True):
     for t, p, *_ in c.published:
         if t.startswith("/baresip/command/"):
             d = json.loads(p)
-            if skip_start and d["token"] == "1":  # Auflegen beim Start, eigener Test
+            if skip_start and d["token"] == "1":  # hangup at start, separate test
                 continue
-            if d["command"] != "reginfo":  # Gesundheitsprüfung, eigene Tests
+            if d["command"] != "reginfo":  # health check, separate tests
                 out.append((d["command"], d.get("params", "")))
     return out
 
@@ -124,7 +124,7 @@ def test_timeout_sends_hangup(tmp_path):
     s.step(0)
     clock.t += 30
     s.step(0)
-    assert ("hangup", "") in cmds(c)  # nach 30 s läuft auch die Gesundheitsprüfung (reginfo)
+    assert ("hangup", "") in cmds(c)  # after 30 s the health check (reginfo) runs too
     assert msgs(c, "doorstation/sip/call")[-1]["reason"] == "timeout"
 
 
@@ -137,7 +137,7 @@ def test_dtmf_published_during_active_call(tmp_path):
 
 
 def test_dtmf_without_active_call_not_published(tmp_path):
-    # Ohne laufendes Gespräch darf keine Taste (z. B. "#" = Türöffner) gemeldet werden.
+    # Without an active call no key (e.g. "#" = door opener) may be reported.
     c, s, clock = setup(tmp_path)
     ev(c, "CALL_DTMF_START", param="#")
     s.step(0)
@@ -145,7 +145,7 @@ def test_dtmf_without_active_call_not_published(tmp_path):
 
 
 def test_dtmf_from_rejected_direct_call_not_published(tmp_path):
-    # Direkter Anruf aus dem LAN: wird aufgelegt, eine sofort nachgeschickte Taste nicht gemeldet.
+    # Direct call from the LAN: hung up, a key sent right after is not reported.
     c, s, clock = setup(tmp_path)
     ev(c, "CALL_ESTABLISHED", direction="incoming", peeruri="sip:evil@192.168.178.99")
     ev(c, "CALL_DTMF_START", param="#")
@@ -194,7 +194,7 @@ def first_reginfo_token(c):
 def test_adapter_restart_learns_registration_from_reginfo(tmp_path):
     c, s, clock = setup(tmp_path, registered=False)
     token = first_reginfo_token(c)
-    assert token is not None  # sofort beim Start abgefragt, nicht erst nach healthcheck_s
+    assert token is not None  # queried right at start, not only after healthcheck_s
     c.simulate_message(f"/baresip/command_resp/{token}", REGINFO_OK % token.encode())
     s.step(0)
     assert msgs(c, "doorstation/sip/registration")[-1]["state"] == "registered"
@@ -213,12 +213,12 @@ def test_status_published_only_on_change(tmp_path):
         c.simulate_message(f"/baresip/command_resp/{last}", REGINFO_OK % last.encode())
         s.step(0)
     statuses = [p for t, p, *_ in c.published if t == "doorstation/sip/status"]
-    assert statuses.count("online") <= 2  # Start + höchstens eine Bestätigung, nicht bei jeder Prüfung
+    assert statuses.count("online") <= 2  # start + at most one confirmation, not on every check
 
 
 def test_startup_hangs_up_leftover_call(tmp_path):
     c, s, clock = setup(tmp_path)
-    assert cmds(c, skip_start=False)[:1] == [("hangup", "")]  # vor allem anderen: alten Anruf von baresip beenden
+    assert cmds(c, skip_start=False)[:1] == [("hangup", "")]  # before anything else: end a leftover baresip call
 
 
 def test_step_sends_heartbeat(tmp_path):
@@ -234,16 +234,16 @@ def test_step_sends_heartbeat(tmp_path):
 
 
 def test_naive_timestamp_rejected(tmp_path):
-    # Ohne Zeitzone ist das Alter nicht bestimmbar (Ortszeit oder UTC?) – lieber verwerfen.
+    # Without a time zone the age is undefined (local time or UTC?) - drop it.
     c, s, clock = setup(tmp_path)
     cmd(c, action="call", ts=NOW.replace(tzinfo=None).isoformat())
     s.step(0)
     assert cmds(c) == []
-    assert "Zeitzone" in msgs(c, "doorstation/sip/error")[-1]["message"]
+    assert "time zone" in msgs(c, "doorstation/sip/error")[-1]["message"]
 
 
 def test_far_future_timestamp_rejected(tmp_path):
-    # Falsch gehende Uhr der Hausautomation: ein Befehl "aus der Zukunft" wäre beliebig lange gültig.
+    # Home automation clock running fast: a command "from the future" would stay valid indefinitely.
     c, s, clock = setup(tmp_path)
     cmd(c, action="call", ts=(NOW + timedelta(seconds=120)).isoformat())
     s.step(0)
@@ -259,23 +259,23 @@ def test_slightly_future_timestamp_accepted(tmp_path):
 
 
 def test_failing_item_does_not_stop_queue(tmp_path):
-    # Ein Fehler bei einem Eintrag (z. B. Ziel-Datei nicht schreibbar) darf die übrigen nicht verlieren
-    # und den Dienst nicht beenden.
+    # An error in one item (e.g. target file not writable) must neither lose the others
+    # nor end the service.
     c, s, clock = setup(tmp_path)
 
     def broken_save(target):
-        raise OSError("Dateisystem schreibgeschützt")
+        raise OSError("read-only file system")
 
     s.store.save = broken_save
     cmd(c, action="set_target", target="**621")
     c.simulate_message("doorstation/event/ring", b"{}")
     s.step(0)
-    assert "schreibgeschützt" in msgs(c, "doorstation/sip/error")[-1]["message"]
+    assert "read-only file system" in msgs(c, "doorstation/sip/error")[-1]["message"]
     assert cmds(c) == [("dial", "sip:**610@192.168.178.1")]
 
 
 def test_registration_unknown_when_baresip_silent(tmp_path):
-    # Antwortet baresip nicht, ist der Anmeldestand unbekannt – nicht der letzte Wert.
+    # If baresip does not respond, the registration is unknown - not the last value.
     c, s, clock = setup(tmp_path)
     for _ in range(3):
         clock.t += 30

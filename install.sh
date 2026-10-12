@@ -1,76 +1,76 @@
 #!/usr/bin/env bash
-# Einrichtung der Türstation auf Raspberry Pi OS (Debian 13 Trixie).
-# Aufruf (als root):
-#   ./install.sh               Installation bzw. Aktualisierung (beliebig oft wiederholbar)
-#   ./install.sh backup  <datei.tar.gz>
-#   ./install.sh restore <datei.tar.gz>
-#   ./install.sh audio-info    Soundkarten und Reglernamen anzeigen
-#   ./install.sh rfid-import <ordner>   bestehende Home-Key-Paarung übernehmen
+# Door station setup on Raspberry Pi OS (Debian 13 Trixie).
+# Usage (as root):
+#   ./install.sh               install or update (can be repeated any time)
+#   ./install.sh backup  <file.tar.gz>
+#   ./install.sh restore <file.tar.gz>
+#   ./install.sh audio-info    show sound cards and control names
+#   ./install.sh rfid-import <dir>   take over an existing Home Key pairing
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
 PREFIX=/opt/doorstation
 SRC="$PREFIX/src"
-ETC="${DOORSTATION_ETC:-/etc/doorstation}"       # Testumgebung: DOORSTATION_ETC
-VAR="${DOORSTATION_VAR:-/var/lib/doorstation}"  # Testumgebung: DOORSTATION_VAR
+ETC="${DOORSTATION_ETC:-/etc/doorstation}"       # test environment: DOORSTATION_ETC
+VAR="${DOORSTATION_VAR:-/var/lib/doorstation}"  # test environment: DOORSTATION_VAR
 BOOT="${DOORSTATION_BOOT:-/boot/firmware}"
 SVC_USER=doorstation
-RUN_TMP=""          # eigener Temp-Ordner je Lauf, wird beim Beenden gelöscht (Passwörter!)
+RUN_TMP=""          # own temp directory per run, deleted on exit (passwords!)
 WARNINGS=()
-AUDIO_RESTARTED=0   # PipeWire neu gestartet → baresip und sound brauchen neue Audioknoten
+AUDIO_RESTARTED=0   # PipeWire restarted -> baresip and sound need new audio nodes
 
 log() { echo "==> $*"; }
 
-# Warnung sofort ausgeben und am Ende noch einmal zusammenfassen.
-warn() { echo "WARNUNG: $*" >&2; WARNINGS+=("$*"); }
+# Print a warning right away and once more in the summary at the end.
+warn() { echo "WARNING: $*" >&2; WARNINGS+=("$*"); }
 
 tmpfile() { mktemp -p "${RUN_TMP:-${TMPDIR:-/tmp}}"; }
 
-# Abbruch mit Meldung. Nötig, weil Funktionen in "&&"-Ketten nicht unter set -e laufen.
-die() { echo "FEHLER: $*" >&2; exit 1; }
+# Abort with a message. Needed because functions in "&&" chains do not run under set -e.
+die() { echo "ERROR: $*" >&2; exit 1; }
 
 require_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    echo "Bitte als root ausführen: sudo $0 $*" >&2
+    echo "Please run as root: sudo $0 $*" >&2
     exit 1
   fi
 }
 
-# Kopiert $1 nach $2, wenn sich der Inhalt unterscheidet. Exit 0 = geändert, 1 = unverändert.
+# Copies $1 to $2 if the content differs. Exit 0 = changed, 1 = unchanged.
 copy_if_changed() {
   local src="$1" dst="$2" mode="${3:-644}"
   if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
     return 1
   fi
-  install -m "$mode" "$src" "$dst" || die "kann $dst nicht schreiben"
+  install -m "$mode" "$src" "$dst" || die "cannot write $dst"
   return 0
 }
 
 install_base() {
-  log "Pakete"
+  log "Packages"
   DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
     mosquitto mosquitto-clients nftables python3-venv python3-libgpiod rsync >/dev/null
 
-  log "Benutzer $SVC_USER"
+  log "User $SVC_USER"
   if ! id "$SVC_USER" >/dev/null 2>&1; then
     useradd --system --home "$VAR" --shell /usr/sbin/nologin "$SVC_USER"
   fi
   usermod -a -G gpio,dialout,audio "$SVC_USER"
 
-  log "Verzeichnisse"
+  log "Directories"
   install -d -m 755 "$ETC" "$PREFIX" "$PREFIX/venv"
-  # Geheimnisse liest nur install.sh (root); kein Dienst braucht sie zur Laufzeit.
+  # Only install.sh (root) reads the secrets; no service needs them at runtime.
   install -d -m 700 -o root -g root "$ETC/secrets"
   find "$ETC/secrets" -type f -exec chown root:root {} + -exec chmod 600 {} +
   install -d -m 755 -o "$SVC_USER" -g "$SVC_USER" "$VAR" "$VAR/sounds"
 
-  log "Quellcode nach $SRC"
+  log "Source code to $SRC"
   rsync -a --delete --exclude .git --exclude .venv --exclude .superpowers \
     --exclude __pycache__ --exclude '*.egg-info' "$REPO/" "$SRC/"
 }
 
 install_mosquitto() {
-  log "Mosquitto (lokal)"
+  log "Mosquitto (local)"
   local changed=0
   copy_if_changed "$SRC/deploy/mosquitto/doorstation.conf" /etc/mosquitto/conf.d/doorstation.conf && changed=1
   systemctl enable --quiet mosquitto
@@ -79,9 +79,9 @@ install_mosquitto() {
   fi
 }
 
-# install_python_package <name> <pfad> [--system-site-packages]
-# Legt $PREFIX/venv/<name> an und installiert common und <pfad> hinein.
-# Exit 0 = Code geändert (Dienst neu starten), 1 = unverändert.
+# install_python_package <name> <path> [--system-site-packages]
+# Creates $PREFIX/venv/<name> and installs common and <path> into it.
+# Exit 0 = code changed (restart the service), 1 = unchanged.
 install_python_package() {
   local name="$1" path="$2" opt="${3:-}"
   local venv="$PREFIX/venv/$name"
@@ -93,33 +93,33 @@ install_python_package() {
   if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$hash" ]; then
     return 1
   fi
-  log "Python-Paket $name"
+  log "Python package $name"
   if [ ! -x "$venv/bin/python" ]; then
     # shellcheck disable=SC2086
-    python3 -m venv $opt "$venv" || die "venv $venv konnte nicht angelegt werden"
+    python3 -m venv $opt "$venv" || die "could not create venv $venv"
   fi
   "$venv/bin/pip" install -q --disable-pip-version-check --upgrade "$SRC/common" "$path" \
-    || die "pip-Installation von $name fehlgeschlagen"
+    || die "pip installation of $name failed"
   echo "$hash" > "$stamp"
   return 0
 }
 
-# install_config <dienst>: Beispielkonfiguration nur kopieren, wenn noch keine existiert.
+# install_config <service>: copy the example configuration only if none exists yet.
 install_config() {
   local svc="$1"
   if [ ! -f "$ETC/$svc.yaml" ]; then
-    log "Beispielkonfiguration $ETC/$svc.yaml"
+    log "Example configuration $ETC/$svc.yaml"
     install -m 644 "$SRC/config-examples/$svc.yaml" "$ETC/$svc.yaml"
   fi
 }
 
-# Liest einen Wert aus einer flachen YAML-Datei (schlüssel: wert).
+# Reads a value from a flat YAML file (key: value).
 yaml_value() {
   sed -nE "s/^$2:[[:space:]]*\"?([^\"#]*[^\"#[:space:]])\"?[[:space:]]*(#.*)?$/\1/p" "$1" | head -n1
 }
 
-# config_txt_add <datei> <zeile>: Zeile im Abschnitt [all] sicherstellen, damit sie für jedes
-# Pi-Modell gilt (am Dateiende steht sonst evtl. [pi5] o. Ä.). Exit 0 = ergänzt, 1 = vorhanden.
+# config_txt_add <file> <line>: make sure the line is in the [all] section so it applies to
+# every Pi model (the file may otherwise end in [pi5] or similar). Exit 0 = added, 1 = present.
 config_txt_add() {
   local file="$1" line="$2"
   if awk -v want="$line" '
@@ -135,26 +135,26 @@ config_txt_add() {
   echo "$line" >> "$file"
 }
 
-# render_bridge <bridge.yaml> <passwortdatei> <ziel>: Bridge-Konfiguration erzeugen.
-# Werte werden geprüft statt escaped – ein Sonderzeichen würde sonst die Mosquitto-Konfiguration zerlegen.
+# render_bridge <bridge.yaml> <password file> <target>: generate the bridge configuration.
+# Values are validated instead of escaped - a special character would break the Mosquitto configuration.
 render_bridge() {
   local cfg="$1" pwfile="$2" out="$3" host port user prefix pass
   host="$(yaml_value "$cfg" host)"; port="$(yaml_value "$cfg" port)"
   user="$(yaml_value "$cfg" username)"; prefix="$(yaml_value "$cfg" prefix)"
   prefix="${prefix:-doorstation}"
-  [[ "$host" =~ ^[A-Za-z0-9.:-]+$ ]] || { echo "bridge.yaml: host '$host' ungültig" >&2; return 1; }
-  [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "bridge.yaml: port '$port' ungültig" >&2; return 1; }
-  [[ "$user" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo "bridge.yaml: username '$user' ungültig" >&2; return 1; }
-  [[ "$prefix" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "bridge.yaml: prefix '$prefix' ungültig (ohne / + #)" >&2; return 1; }
+  [[ "$host" =~ ^[A-Za-z0-9.:-]+$ ]] || { echo "bridge.yaml: host '$host' invalid" >&2; return 1; }
+  [[ "$port" =~ ^[0-9]{1,5}$ ]] || { echo "bridge.yaml: port '$port' invalid" >&2; return 1; }
+  [[ "$user" =~ ^[A-Za-z0-9._@-]+$ ]] || { echo "bridge.yaml: username '$user' invalid" >&2; return 1; }
+  [[ "$prefix" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "bridge.yaml: prefix '$prefix' invalid (no / + #)" >&2; return 1; }
   pass="$(head -n1 "$pwfile" | tr -d '\r')"
-  [ -n "$pass" ] || { echo "bridge_password ist leer" >&2; return 1; }
+  [ -n "$pass" ] || { echo "bridge_password is empty" >&2; return 1; }
   sed -e "s|@HOST@|$host|" -e "s|@PORT@|$port|" -e "s|@USERNAME@|$user|" \
       -e "s|@PREFIX@|$prefix|g" "$SRC/deploy/mosquitto/bridge.conf.template" \
     | PW="$pass" awk '{ i = index($0, "@PASSWORD@"); if (i) $0 = substr($0, 1, i - 1) ENVIRON["PW"] substr($0, i + 10); print }' > "$out"
 }
 
-# apply_mosquitto_conf <neu> <ziel>: Konfiguration übernehmen und Mosquitto neu starten. Startet er
-# damit nicht, wird die vorherige wiederhergestellt – ohne Broker klingelt nichts.
+# apply_mosquitto_conf <new> <target>: apply the configuration and restart Mosquitto. If it does
+# not start with it, the previous one is restored - without a broker the bell stays silent.
 apply_mosquitto_conf() {
   local new="$1" dst="$2" backup=""
   if [ -f "$dst" ] && cmp -s "$new" "$dst"; then
@@ -167,13 +167,13 @@ apply_mosquitto_conf() {
   if systemctl restart mosquitto; then
     return 0
   fi
-  warn "Mosquitto startet mit der neuen Bridge-Konfiguration nicht – vorherige wiederhergestellt (journalctl -u mosquitto)"
+  warn "Mosquitto does not start with the new bridge configuration - previous one restored (journalctl -u mosquitto)"
   if [ -n "$backup" ]; then
     install -m 640 "$backup" "$dst"; chown root:mosquitto "$dst"
   else
     rm -f "$dst"
   fi
-  systemctl restart mosquitto || warn "Mosquitto startet auch mit der vorherigen Konfiguration nicht"
+  systemctl restart mosquitto || warn "Mosquitto does not start with the previous configuration either"
   return 0
 }
 
@@ -182,25 +182,25 @@ install_bridge() {
   local dst=/etc/mosquitto/conf.d/doorstation-bridge.conf tmp
   if [ ! -f "$cfg" ] || [ ! -s "$pw" ]; then
     if [ -f "$dst" ]; then
-      log "Bridge entfernt (keine Konfiguration)"
+      log "Bridge removed (no configuration)"
       rm -f "$dst"
       systemctl restart mosquitto
     else
-      log "Bridge: keine Konfiguration ($cfg, $pw) – übersprungen"
+      log "Bridge: no configuration ($cfg, $pw) - skipped"
     fi
     return 0
   fi
-  log "Bridge zu IP-Symcon"
+  log "Bridge to the home automation"
   tmp="$(tmpfile)"
   if ! render_bridge "$cfg" "$pw" "$tmp"; then
-    warn "Bridge nicht geändert – $cfg bzw. Passwort prüfen"
+    warn "Bridge not changed - check $cfg and the password"
   else
     apply_mosquitto_conf "$tmp" "$dst"
   fi
   rm -f "$tmp"
 }
 
-# install_unit <name>: systemd-Unit installieren. Exit 0 = geändert.
+# install_unit <name>: install a systemd unit. Exit 0 = changed.
 install_unit() {
   if copy_if_changed "$SRC/deploy/systemd/$1.service" "/etc/systemd/system/$1.service"; then
     systemctl daemon-reload
@@ -216,28 +216,28 @@ install_gpio() {
   install_unit doorstation-gpio && restart=1
   systemctl enable --quiet doorstation-gpio
   if [ "$restart" -eq 1 ] || ! systemctl is-active --quiet doorstation-gpio; then
-    log "Dienst doorstation-gpio (neu) starten"
+    log "(Re)starting doorstation-gpio"
     systemctl restart doorstation-gpio
   fi
 }
 
 REBOOT_NEEDED=0
 
-# Systemd-Benutzerbefehl für den Dienstbenutzer (dessen User-Manager läuft dank Linger).
+# systemd user command for the service user (its user manager runs thanks to linger).
 user_systemctl() {
   local uid; uid="$(id -u "$SVC_USER")"
   runuser -u "$SVC_USER" -- env XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user "$@"
 }
 
 install_audio() {
-  log "Audio (PipeWire mit Echounterdrückung)"
+  log "Audio (PipeWire with echo cancellation)"
   DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
     pipewire pipewire-alsa pipewire-bin wireplumber alsa-utils baresip-core >/dev/null \
-    || die "Audio-Pakete konnten nicht installiert werden"
+    || die "could not install audio packages"
   loginctl enable-linger "$SVC_USER"
   local uid; uid="$(id -u "$SVC_USER")"
   local i; for i in $(seq 1 20); do [ -S "/run/user/$uid/bus" ] && break; sleep 0.5; done
-  [ -S "/run/user/$uid/bus" ] || die "User-Manager von $SVC_USER läuft nicht"
+  [ -S "/run/user/$uid/bus" ] || die "user manager of $SVC_USER is not running"
   local confdir="$VAR/.config/pipewire/pipewire.conf.d" changed=0
   install -d -o "$SVC_USER" -g "$SVC_USER" "$VAR/.config" "$VAR/.config/pipewire" "$confdir"
   copy_if_changed "$SRC/deploy/pipewire/60-echo-cancel.conf" "$confdir/60-echo-cancel.conf" && changed=1
@@ -250,7 +250,7 @@ install_audio() {
     user_systemctl start pipewire wireplumber
   fi
 
-  # Onboard-Audio (Klinke, HDMI) abschalten: dann ist der USB-Stick das einzige Audiogerät.
+  # Disable onboard audio (jack, HDMI): the USB stick is then the only audio device.
   local cfgtxt="$BOOT/config.txt"
   if [ -f "$cfgtxt" ]; then
     if grep -q '^dtparam=audio=on' "$cfgtxt"; then
@@ -262,26 +262,26 @@ install_audio() {
   fi
 }
 
-# install_firewall <fritzbox-ip>: SIP/RTP von baresip nur von der FritzBox annehmen.
-# Direkte Anrufe aus dem LAN (auch mit gefälschtem Absender) erreichen baresip dann nicht.
+# install_firewall <fritzbox-ip>: accept SIP/RTP of baresip from the FritzBox only.
+# Direct calls from the LAN (even with a spoofed sender) then never reach baresip.
 install_firewall() {
   local fritz="$1" dst="$PREFIX/firewall.nft" rtp tmp changed=0
   if ! [[ "$fritz" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
-    warn "sip.yaml 'fritzbox: $fritz' ist keine IPv4-Adresse – kein SIP-Paketfilter, direkte Anrufe aus dem LAN erreichen baresip"
+    warn "sip.yaml 'fritzbox: $fritz' is not an IPv4 address - no SIP packet filter, direct calls from the LAN reach baresip"
     systemctl disable --now doorstation-firewall >/dev/null 2>&1 || true
     return 0
   fi
   rtp="$(sed -nE 's/^rtp_ports[[:space:]]+([0-9]+-[0-9]+)[[:space:]]*$/\1/p' "$VAR/baresip/config")"
-  [ -n "$rtp" ] || die "rtp_ports fehlt in $VAR/baresip/config"
+  [ -n "$rtp" ] || die "rtp_ports missing in $VAR/baresip/config"
   tmp="$(tmpfile)"
   sed -e "s|@FRITZBOX@|$fritz|" -e "s|@RTP_PORTS@|$rtp|" "$SRC/deploy/nftables/doorstation.nft.template" > "$tmp"
-  nft -c -f "$tmp" || { rm -f "$tmp"; die "Paketfilter ungültig"; }
+  nft -c -f "$tmp" || { rm -f "$tmp"; die "invalid packet filter"; }
   copy_if_changed "$tmp" "$dst" && changed=1
   rm -f "$tmp"
   install_unit doorstation-firewall && changed=1
   systemctl enable --quiet doorstation-firewall
   if [ "$changed" -eq 1 ] || ! systemctl is-active --quiet doorstation-firewall; then
-    log "Paketfilter doorstation-firewall (neu) laden"; systemctl restart doorstation-firewall
+    log "(Re)loading packet filter doorstation-firewall"; systemctl restart doorstation-firewall
   fi
 }
 
@@ -289,13 +289,13 @@ install_sip() {
   local restart_sip=0 restart_baresip=0
   local pw="$ETC/secrets/sip_password"
   if [ ! -s "$pw" ]; then
-    # Frische Installation: Passwort kommt erst danach – den Rest trotzdem einrichten.
-    warn "SIP-Passwort fehlt ($pw) – SIP übersprungen. Ablegen siehe docs/installation.md, Abschnitt 4, dann install.sh erneut"
+    # Fresh installation: the password comes later - set up the rest anyway.
+    warn "SIP password missing ($pw) - SIP skipped. See docs/installation.md, section 4, then run install.sh again"
     return 0
   fi
   if head -n1 "$pw" | tr -d '\r' | grep -q '[;>"[:space:]]'; then
-    # Würde die baresip-accounts-Zeile zerlegen; die Anmeldung schlüge still fehl.
-    warn "SIP-Passwort enthält ein nicht erlaubtes Zeichen (; > \" oder Leerzeichen) – SIP übersprungen. In der FritzBox ein anderes Passwort vergeben"
+    # Would break the baresip accounts line; registration would fail silently.
+    warn "SIP password contains a character that is not allowed (; > \" or space) - SIP skipped. Set a different password in the FritzBox"
     return 0
   fi
   [ "$AUDIO_RESTARTED" -eq 0 ] || restart_baresip=1
@@ -306,7 +306,7 @@ install_sip() {
 
   local fritz user tmp
   fritz="$(yaml_value "$ETC/sip.yaml" fritzbox)"; user="$(yaml_value "$ETC/sip.yaml" username)"
-  [ -n "$fritz" ] && [ -n "$user" ] || die "sip.yaml: fritzbox oder username fehlt"
+  [ -n "$fritz" ] && [ -n "$user" ] || die "sip.yaml: fritzbox or username missing"
 
   copy_if_changed "$SRC/services/sip/baresip/config.template" "$VAR/baresip/config" 600 && restart_baresip=1
   tmp="$(tmpfile)"
@@ -327,10 +327,10 @@ install_sip() {
   install_unit doorstation-sip && restart_sip=1
   systemctl enable --quiet doorstation-baresip doorstation-sip
   if [ "$restart_baresip" -eq 1 ] || ! systemctl is-active --quiet doorstation-baresip; then
-    log "Dienst doorstation-baresip (neu) starten"; systemctl restart doorstation-baresip
+    log "(Re)starting doorstation-baresip"; systemctl restart doorstation-baresip
   fi
   if [ "$restart_sip" -eq 1 ] || ! systemctl is-active --quiet doorstation-sip; then
-    log "Dienst doorstation-sip (neu) starten"; systemctl restart doorstation-sip
+    log "(Re)starting doorstation-sip"; systemctl restart doorstation-sip
   fi
 }
 
@@ -340,7 +340,7 @@ install_rfid() {
   install_config rfid
   install -d -m 700 -o "$SVC_USER" -g "$SVC_USER" "$VAR/rfid"
 
-  # UART für den PN532: freischalten, Bluetooth ab, serielle Konsole ab.
+  # UART for the PN532: enable it, Bluetooth off, serial console off.
   local cfgtxt="$BOOT/config.txt" cmdline="$BOOT/cmdline.txt"
   if [ -f "$cfgtxt" ]; then
     config_txt_add "$cfgtxt" enable_uart=1 && REBOOT_NEEDED=1
@@ -361,19 +361,19 @@ install_rfid() {
   install_unit doorstation-rfid && restart=1
   systemctl enable --quiet doorstation-rfid
   if [ "$restart" -eq 1 ] || ! systemctl is-active --quiet doorstation-rfid; then
-    log "Dienst doorstation-rfid (neu) starten"; systemctl restart doorstation-rfid
+    log "(Re)starting doorstation-rfid"; systemctl restart doorstation-rfid
   fi
 }
 
-# rfid-import <ordner>: hap.state und homekey.json einer bestehenden Paarung übernehmen.
+# rfid-import <dir>: take over hap.state and homekey.json of an existing pairing.
 do_rfid_import() {
-  local from="${1:?Ordner mit hap.state und homekey.json fehlt}" f
+  local from="${1:?directory with hap.state and homekey.json missing}" f
   for f in hap.state homekey.json; do
-    [ -s "$from/$f" ] || die "$from/$f fehlt"
+    [ -s "$from/$f" ] || die "$from/$f missing"
   done
-  # Eine bestehende Paarung nie überschreiben. Ein hap.state ohne homekey.json stammt von einem
-  # ungepaarten ersten Start (der Dienst legt es sofort an) und wird beiseitegelegt.
-  [ -e "$VAR/rfid/homekey.json" ] && die "$VAR/rfid/homekey.json existiert schon – es gibt bereits eine Paarung, nichts übernommen"
+  # Never overwrite an existing pairing. A hap.state without homekey.json comes from an
+  # unpaired first start (the service creates it right away) and is moved aside.
+  [ -e "$VAR/rfid/homekey.json" ] && die "$VAR/rfid/homekey.json already exists - there is a pairing already, nothing taken over"
   install -d -m 700 -o "$SVC_USER" -g "$SVC_USER" "$VAR/rfid"
   systemctl stop doorstation-rfid 2>/dev/null || true
   [ -e "$VAR/rfid/hap.state" ] && mv "$VAR/rfid/hap.state" "$VAR/rfid/hap.state.bak"
@@ -381,7 +381,7 @@ do_rfid_import() {
     install -m 600 -o "$SVC_USER" -g "$SVC_USER" "$from/$f" "$VAR/rfid/$f"
   done
   systemctl start doorstation-rfid 2>/dev/null || true
-  log "Paarung aus $from übernommen"
+  log "Pairing taken over from $from"
 }
 
 install_sound() {
@@ -402,7 +402,7 @@ install_sound() {
   rm -f "$tmp"
   systemctl enable --quiet doorstation-sound
   if [ "$restart" -eq 1 ] || ! systemctl is-active --quiet doorstation-sound; then
-    log "Dienst doorstation-sound (neu) starten"; systemctl restart doorstation-sound
+    log "(Re)starting doorstation-sound"; systemctl restart doorstation-sound
   fi
 }
 
@@ -410,7 +410,7 @@ do_audio_info() {
   cat /proc/asound/cards
   local n
   for n in $(sed -nE 's/^ *([0-9]+) \[.*USB.*/\1/p' /proc/asound/cards); do
-    echo "--- Regler der Karte $n:"
+    echo "--- Controls of card $n:"
     amixer -c "$n" scontrols
   done
 }
@@ -424,24 +424,24 @@ do_install() {
   install_sip
   install_sound
   install_rfid
-  log "Fertig"
+  log "Done"
   local w
-  for w in "${WARNINGS[@]}"; do echo "WARNUNG: $w" >&2; done
+  for w in "${WARNINGS[@]}"; do echo "WARNING: $w" >&2; done
   if [ "$REBOOT_NEEDED" -eq 1 ]; then
-    echo "==> Boot-Einstellungen (config.txt/cmdline.txt) geändert: bitte neu starten (sudo reboot)"
+    echo "==> Boot settings (config.txt/cmdline.txt) changed: please reboot (sudo reboot)"
   fi
 }
 
 do_backup() {
-  local out="${1:?Zieldatei fehlt}"
-  # Enthält Geheimnisse (Passwörter, HomeKit-Schlüssel): nur für root lesbar.
+  local out="${1:?target file missing}"
+  # Contains secrets (passwords, HomeKit keys): readable by root only.
   (umask 077; tar czf "$out" -C / "${ETC#/}" "${VAR#/}")
   chmod 600 "$out"
-  log "Sicherung geschrieben: $out"
+  log "Backup written: $out"
 }
 
 do_restore() {
-  local in="${1:?Quelldatei fehlt}"
+  local in="${1:?source file missing}"
   local units
   units="$(systemctl list-units --plain --no-legend 'doorstation-*' | awk '{print $1}')"
   [ -n "$units" ] && systemctl stop $units
@@ -450,7 +450,7 @@ do_restore() {
   chown -R root:root "$ETC/secrets"
   chmod 700 "$ETC/secrets"
   [ -n "$units" ] && systemctl start $units
-  log "Wiederhergestellt aus $in – jetzt 'sudo ./install.sh' ausführen (Bridge, baresip-Konto, Paketfilter)"
+  log "Restored from $in - now run 'sudo ./install.sh' (bridge, baresip account, packet filter)"
 }
 
 main() {
@@ -463,11 +463,11 @@ main() {
     restore) do_restore "${2:-}" ;;
     audio-info) do_audio_info ;;
     rfid-import) do_rfid_import "${2:-}" ;;
-    *) echo "Unbekannter Befehl: $1" >&2; exit 2 ;;
+    *) echo "Unknown command: $1" >&2; exit 2 ;;
   esac
 }
 
-# Nur bei direktem Aufruf ausführen; eingelesen (source) stehen die Funktionen für Tests bereit.
+# Run only when called directly; when sourced, the functions are available for tests.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   main "$@"
 fi

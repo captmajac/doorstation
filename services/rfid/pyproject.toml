@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "doorstation-rfid"
 version = "0.1.0"
 requires-python = ">=3.11"
-# Versionen wie kormax/apple-home-key-reader 9675407 (auf Raspberry Pi OS 13 geprüft)
+# Versions as in kormax/apple-home-key-reader 9675407 (tested on Raspberry Pi OS 13)
 dependencies = [
   "doorstation-common",
   "HAP-python==4.9.2",

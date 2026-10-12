@@ -15,5 +15,5 @@ def test_pw_play_command(monkeypatch):
             return None
 
     monkeypatch.setattr(player_mod.subprocess, "Popen", FakePopen)
-    PwPlayPlayer("ec_sink").start(Path("/s/post.wav"), 0.8)
-    assert calls == [["pw-play", "--target", "ec_sink", "--volume", "0.80", "/s/post.wav"]]
+    PwPlayPlayer("ec_sink").start(Path("/s/you_have_mail.wav"), 0.8)
+    assert calls == [["pw-play", "--target", "ec_sink", "--volume", "0.80", "/s/you_have_mail.wav"]]

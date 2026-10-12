@@ -1,4 +1,4 @@
-"""Startpunkt: doorstation-sound [--config PFAD]"""
+"""Entry point: doorstation-sound [--config PATH]"""
 
 import argparse
 import logging
@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cfg = load_config(args.config)
     except ConfigError as exc:
-        print(f"Konfigurationsfehler: {exc}", file=sys.stderr)
+        print(f"configuration error: {exc}", file=sys.stderr)
         return 2
 
     stop = threading.Event()
@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     service = SoundService(cfg, mqtt, play_queue)
     service.start()
     mqtt.start()
-    log.info("gestartet, %d Töne verfügbar", len(service._names))
+    log.info("started, %d sounds available", len(service._names))
     try:
         while not stop.is_set():
             service.step(0.1)

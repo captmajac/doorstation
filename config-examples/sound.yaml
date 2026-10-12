@@ -1,18 +1,17 @@
-# Sound-Dienst der Türstation: Name → Datei. IP-Symcon wählt nur Namen, nie Dateipfade.
-# Tondateien (WAV/FLAC/OGG) nach /var/lib/doorstation/sounds kopieren und hier eintragen.
+# Door station sound service: name -> file. The home automation picks names only, never file paths.
+# Copy sound files (WAV/FLAC/OGG) to /var/lib/doorstation/sounds and list them here.
 mqtt:
   host: localhost
   port: 1883
   prefix: doorstation
-  heartbeat_s: 300          # Status alle 5 min wiederholen (Lebenszeichen), 0 = aus
-default_volume: 0.8       # 0.0–1.0, wenn beim Ton und im Befehl nichts angegeben ist
-queue_size: 3             # wartende Töne; der älteste fällt heraus
-max_play_s: 120           # Abspielen wird spätestens nach dieser Zeit beendet
-target: ec_sink           # PipeWire-Ausgabe (Echounterdrückung des SIP-Dienstes)
+  heartbeat_s: 300          # repeat status every 5 min (heartbeat), 0 = off
+default_volume: 0.8       # 0.0-1.0, used when neither the sound nor the command sets a volume
+queue_size: 3             # waiting sounds; the oldest is dropped
+max_play_s: 120           # playback is stopped after this time at the latest
+target: ec_sink           # PipeWire output (echo cancellation of the SIP service)
 sounds:
-  beep:         { file: /var/lib/doorstation/sounds/beep.wav, volume: 0.6 }   # Lese-Ton (mitgeliefert)
-  post:         { file: /var/lib/doorstation/sounds/post.wav }
-  post_kurz:    { file: /var/lib/doorstation/sounds/post_fuer_dich.wav }
-  tuer_oeffnet: { file: /var/lib/doorstation/sounds/geoeffnet.wav }
-  paket_ablage: { file: /var/lib/doorstation/sounds/ablage.wav }
-  schrei:       { file: /var/lib/doorstation/sounds/SCREAM_4.wav, volume: 1.0 }
+  beep:                { file: /var/lib/doorstation/sounds/beep.wav, volume: 0.6 }   # read feedback sound (shipped)
+  you_have_mail:       { file: /var/lib/doorstation/sounds/you_have_mail.wav }
+  door_opening:        { file: /var/lib/doorstation/sounds/door_opening.wav }
+  parcel_dropoff:      { file: /var/lib/doorstation/sounds/parcel_dropoff.wav }
+  easteregg_halloween: { file: /var/lib/doorstation/sounds/easteregg_halloween.wav, volume: 1.0 }

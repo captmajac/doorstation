@@ -1,4 +1,4 @@
-"""Dauerhaft gespeichertes Anrufziel (None = stumm)."""
+"""Persistent call target (None = muted)."""
 
 import json
 import logging
@@ -21,15 +21,15 @@ class TargetStore:
         except FileNotFoundError:
             return self.default
         except (OSError, ValueError) as exc:
-            log.warning("Ziel-Datei %s unlesbar (%s) – verwende %s", self.path, exc, self.default)
+            log.warning("target file %s unreadable (%s) - using %s", self.path, exc, self.default)
             return self.default
         if not isinstance(data, dict) or "target" not in data:
-            log.warning("Ziel-Datei %s ohne 'target' – verwende %s", self.path, self.default)
+            log.warning("target file %s without 'target' - using %s", self.path, self.default)
             return self.default
         target = data["target"]
         if target is None or valid_target(target):
             return target
-        log.warning("Ziel '%s' in %s ungültig – verwende %s", target, self.path, self.default)
+        log.warning("target '%s' in %s invalid - using %s", target, self.path, self.default)
         return self.default
 
     def save(self, target: str | None) -> None:

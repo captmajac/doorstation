@@ -1,8 +1,8 @@
-"""Eigene, fehlertolerante Leseschleife (statt kormax Service.run/_read_homekey).
+"""Own fault-tolerant read loop (instead of kormax Service.run/_read_homekey).
 
-In kormax' Schleife beendet jede Ausnahme den Lesevorgang mit 5 s Pause. Hier wird jede
-Ausnahme abgefangen und der Leser sofort neu geöffnet; Doppelmeldungen verhindert der
-Reporter über seine Wiederholsperre statt „warten, bis die Karte weg ist“.
+In kormax' loop every exception ends the read with a 5 s pause. Here every exception is
+caught and the reader is reopened immediately; the reporter's repeat block prevents
+duplicate reports instead of "waiting until the card is gone".
 """
 
 import logging
@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 AFTER_READ_S = 0.5
 REOPEN_FAIL_S = 1.0
-DEGRADED_AFTER = 3        # aufeinanderfolgende Fehler, bevor degraded gemeldet wird
+DEGRADED_AFTER = 3        # consecutive errors before degraded is reported
 
 
 def _ecp_frame(repository, express: bool) -> bytes:
@@ -52,18 +52,18 @@ class ReaderLoop:
     @property
     def paired(self) -> bool:
         key = self.service.repository.get_reader_private_key()
-        # kormax nutzt ohne Paarung (und nach dem Entfernen aus Apple Home) 32 Null-Bytes.
+        # Without pairing (and after removal from Apple Home) kormax uses 32 zero bytes.
         return bool(key) and any(key)
 
     def step(self) -> None:
-        self._on_tick()  # Lebenszeichen aus der Leseschleife (hängt sie, bleibt es aus)
+        self._on_tick()  # heartbeat from the read loop (stops if the loop hangs)
         try:
             self._read_once()
-        except Exception as exc:  # Leser- oder Funkfehler: nie die Schleife beenden
+        except Exception as exc:  # reader or radio error: never end the loop
             self._failures += 1
-            log.warning("Lesefehler %r – Leser wird neu geöffnet", exc)
+            log.warning("read error %r - reopening reader", exc)
             reopened = self._reopen()
-            # Einzelne Funkfehler des PN532 nach dem Lesen sind normal – erst Dauerfehler melden.
+            # Single PN532 radio errors after a read are normal - report persistent errors only.
             if not reopened or self._failures >= DEGRADED_AFTER:
                 self._on_health(False)
             return
@@ -105,21 +105,21 @@ class ReaderLoop:
                 key_size=16,
             )
         except ProtocolError as exc:
-            # Kein Home Key: AirTag (feste UID) melden, Apple Pay/Bankkarte (Zufalls-UID) verwerfen.
-            log.info("ISO-DEP ohne Home Key (%s)", exc)
+            # No Home Key: report AirTag (fixed UID), drop Apple Pay/bank card (random UID).
+            log.info("ISO-DEP without Home Key (%s)", exc)
             self._report_card(target)
             return
         if new_issuers:
             repo.upsert_issuers(new_issuers)
         if endpoint is not None:
             self.reporter.report("homekey", homekey_id(endpoint.public_key))
-            # Liegt das iPhone weiter am Leser, nicht jede Sekunde neu per Express wecken.
+            # If the iPhone stays at the reader, do not wake it via Express every second.
             self._quiet_until = self._clock() + self._quiet_s
 
     def _report_card(self, target) -> None:
         cid = card_id(bytes(target.identifier))
         if cid is None:
-            log.info("Zufalls-UID verworfen")
+            log.info("random UID dropped")
             return
         self.reporter.report("card", cid)
 
@@ -133,14 +133,14 @@ class ReaderLoop:
             self._open()
             return True
         except Exception as exc:
-            log.warning("Leser kann nicht geöffnet werden: %r", exc)
+            log.warning("cannot open reader: %r", exc)
             self._sleep(REOPEN_FAIL_S)
             return False
 
     def _open(self) -> None:
         self.clf.open(self.clf.path)
-        if getattr(self.clf, "device", None) is None:  # nfcpy: Leser nicht gefunden
-            raise OSError(f"kein Leser an {self.clf.path}")
+        if getattr(self.clf, "device", None) is None:  # nfcpy: reader not found
+            raise OSError(f"no reader at {self.clf.path}")
 
     def run(self, stop: threading.Event) -> None:
         while not stop.is_set():
@@ -148,7 +148,7 @@ class ReaderLoop:
                 self._open()
                 break
             except Exception as exc:
-                log.warning("Leser nicht gefunden (%r) – neuer Versuch", exc)
+                log.warning("reader not found (%r) - retrying", exc)
                 self._on_health(False)
                 self._sleep(REOPEN_FAIL_S)
         while not stop.is_set():

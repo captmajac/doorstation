@@ -16,7 +16,7 @@ def test_save_none_persists_mute(tmp_path):
 
 
 def test_corrupt_file_returns_default(tmp_path):
-    (tmp_path / "t.json").write_text("{kaputt")
+    (tmp_path / "t.json").write_text("{broken")
     assert TargetStore(tmp_path / "t.json", "**701").load() == "**701"
 
 

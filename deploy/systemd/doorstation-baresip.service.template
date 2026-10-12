@@ -1,9 +1,9 @@
 [Unit]
-Description=Türstation: baresip (SIP-Telefon)
+Description=Door station: baresip (SIP phone)
 Wants=network-online.target user@@UID@.service
 After=network-online.target mosquitto.service user@@UID@.service
 
-# Nie endgültig aufgeben (z. B. USB-Stick beim Booten spät): sonst keine Klingel mehr.
+# Never give up for good (e.g. USB stick late at boot): otherwise no bell.
 StartLimitIntervalSec=0
 
 [Service]
@@ -14,7 +14,7 @@ ExecStart=/usr/bin/baresip -f /var/lib/doorstation/baresip
 Restart=always
 RestartSec=2
 
-# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+# Hardening - checked by common/tests/test_systemd_units.py and systemd-analyze security
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict
@@ -33,9 +33,9 @@ SystemCallArchitectures=native
 SystemCallFilter=@system-service
 UMask=0077
 DevicePolicy=closed
-# PipeWire-Socket des Benutzerdienstes liegt unter /run/user (ProtectHome=yes würde ihn verbergen)
+# The PipeWire socket of the user service lives in /run/user (ProtectHome=yes would hide it)
 ProtectHome=read-only
-# AF_NETLINK: baresip ermittelt Schnittstellen und Adressen
+# AF_NETLINK: baresip looks up interfaces and addresses
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 # amixer in doorstation-audio-init
 DeviceAllow=char-alsa rw

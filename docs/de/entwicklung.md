@@ -1,3 +1,5 @@
+[English](../development.md) | **Deutsch**
+
 # Entwicklung
 
 ## Aufbau des Repos
@@ -17,8 +19,8 @@ config-examples/            Beispielkonfigurationen für /etc/doorstation/
 deploy/                     systemd-Units, Mosquitto-, nftables- und PipeWire-Vorlagen
 install.sh                  Installation, Update, Sicherung
 scripts/pi-test.sh          Tests auf dem Raspberry Pi ausführen
-tests/                      Tests für install.sh
-docs/                       Dokumentation
+tests/                      Tests für install.sh, Sprach- und Doku-Prüfung
+docs/                       Dokumentation (Englisch; Deutsch unter docs/de/)
 ```
 
 ## Grundsätze
@@ -27,6 +29,8 @@ docs/                       Dokumentation
 - MQTT-Callbacks laufen im Netzwerk-Thread von paho und **reihen nur ein**; verarbeitet wird im Hauptthread des Dienstes.
 - Zeitstempel (`ts`) aus der Wanduhr, Timer und Sperrzeiten aus der monotonen Uhr.
 - Konfiguration wird beim Start streng geprüft; Fehler nennen Datei und Feld.
+- Code, Kommentare, Log- und Fehlermeldungen sind englisch (prüft `tests/test_language.py`).
+- Die Doku gibt es auf Englisch und Deutsch: beide Fassungen zusammen ändern. `tests/test_docs.py` prüft, dass jedes Dokument sein Gegenstück hat, den Sprachumschalter sowie alle Links und Anker.
 
 ## Tests
 

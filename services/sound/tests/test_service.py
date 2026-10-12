@@ -12,11 +12,11 @@ from doorstation_sound.service import SoundService
 
 def setup(tmp_path):
     (tmp_path / "beep.wav").write_bytes(b"RIFF")
-    (tmp_path / "post.wav").write_bytes(b"RIFF")
+    (tmp_path / "you_have_mail.wav").write_bytes(b"RIFF")
     cfg = SoundConfig(MqttSettings(), default_volume=0.8, sounds={
         "beep": SoundEntry("beep", tmp_path / "beep.wav", 0.6),
-        "post": SoundEntry("post", tmp_path / "post.wav", None),
-        "fehlt": SoundEntry("fehlt", tmp_path / "fehlt.wav", None),
+        "you_have_mail": SoundEntry("you_have_mail", tmp_path / "you_have_mail.wav", None),
+        "absent": SoundEntry("absent", tmp_path / "absent.wav", None),
     })
     c = FakeMqttClient()
     m = ServiceMqtt("sound", MqttSettings(), client=c)
@@ -40,7 +40,7 @@ def last(c, topic):
 
 def test_start_publishes_available_and_idle(tmp_path):
     c, s, p = setup(tmp_path)
-    assert last(c, "doorstation/sound/available")["names"] == ["beep", "post"]
+    assert last(c, "doorstation/sound/available")["names"] == ["beep", "you_have_mail"]
     assert last(c, "doorstation/sound/state")["state"] == "idle"
 
 
@@ -52,7 +52,7 @@ def test_play_known_name(tmp_path):
 
 def test_play_unknown_name_error(tmp_path):
     c, s, p = setup(tmp_path)
-    cmd(c, s, action="play", name="fehlt")
+    cmd(c, s, action="play", name="absent")
     assert last(c, "doorstation/sound/error") and p.started == []
 
 
@@ -62,14 +62,14 @@ def test_volume_precedence(tmp_path):
     p.finish(); s.step(0)
     cmd(c, s, action="play", name="beep")
     p.finish(); s.step(0)
-    cmd(c, s, action="play", name="post")
+    cmd(c, s, action="play", name="you_have_mail")
     assert p.volumes == [0.3, 0.6, 0.8]
 
 
 def test_invalid_volume_error(tmp_path):
     c, s, p = setup(tmp_path)
-    c.published.clear()  # Startmeldung "Tondatei fehlt" nicht mitzählen
-    cmd(c, s, action="play", name="beep", volume="laut")
+    c.published.clear()  # do not count the startup message "Sound file missing"
+    cmd(c, s, action="play", name="beep", volume="loud")
     cmd(c, s, action="play", name="beep", volume=1.5)
     errors = [t for t, *_ in c.published if t == "doorstation/sound/error"]
     assert len(errors) == 2 and p.started == []
@@ -77,7 +77,7 @@ def test_invalid_volume_error(tmp_path):
 
 def test_stop_command(tmp_path):
     c, s, p = setup(tmp_path)
-    cmd(c, s, action="play", name="post")
+    cmd(c, s, action="play", name="you_have_mail")
     cmd(c, s, action="stop")
     assert last(c, "doorstation/sound/state")["state"] == "idle"
 
@@ -119,7 +119,16 @@ def test_step_sends_heartbeat(tmp_path):
 
 
 def test_missing_sound_files_reported_as_error(tmp_path):
-    # Nicht nur im Journal: die Hausautomation soll sehen, dass ein konfigurierter Ton fehlt.
+    # Not only in the journal: the home automation should see that a configured sound is missing.
     c, s, p = setup(tmp_path)
     errors = [json.loads(p_)["message"] for t, p_, *_ in c.published if t == "doorstation/sound/error"]
-    assert any("fehlt" in e for e in errors)
+    assert any(e.startswith("Sound file missing: absent ") for e in errors)
+
+
+def test_old_sound_name_rejected_with_name(tmp_path):
+    # Home automation still sending a renamed sound: clear error naming it, service keeps running.
+    c, s, p = setup(tmp_path)
+    cmd(c, s, action="play", name="old_door_sound")
+    msg = last(c, "doorstation/sound/error")["message"]
+    assert "old_door_sound" in msg and "unknown" in msg
+    assert p.started == []

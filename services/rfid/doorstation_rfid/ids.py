@@ -1,15 +1,15 @@
-"""IDs, die an IP-Symcon gemeldet werden."""
+"""IDs reported to the home automation."""
 
 import hashlib
 
 
 def card_id(uid: bytes) -> str | None:
-    """UID als Hex (groß). None bei Zufalls-UID nach ISO/IEC 14443-3 (4 Byte, erstes Byte 0x08)."""
+    """UID as hex (upper case). None for a random UID per ISO/IEC 14443-3 (4 bytes, first byte 0x08)."""
     if len(uid) == 4 and uid[0] == 0x08:
         return None
     return uid.hex().upper()
 
 
 def homekey_id(public_key: bytes) -> str:
-    """Stabile, nicht geheime Kennung eines Home Keys: erste 8 Byte SHA-256 über den Public Key."""
+    """Stable, non-secret identifier of a Home Key: first 8 bytes of SHA-256 over the public key."""
     return hashlib.sha256(public_key).digest()[:8].hex().upper()

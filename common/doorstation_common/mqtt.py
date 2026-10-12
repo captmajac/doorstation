@@ -1,4 +1,4 @@
-"""MQTT-Hülle für einen Dienst: Topics, Status mit Last Will, Fehler, Befehle."""
+"""MQTT wrapper for a service: topics, status with last will, errors, commands."""
 
 import json
 import logging
@@ -23,7 +23,7 @@ class ServiceMqtt:
         if client is None:
             import paho.mqtt.client as paho
 
-            # Eigene Client-ID je Instanz: gleiche IDs trennen sich am Broker gegenseitig.
+            # One client ID per instance: identical IDs disconnect each other at the broker.
             client = paho.Client(paho.CallbackAPIVersion.VERSION2,
                                  client_id=f"doorstation-{service}{client_id_suffix}")
         self._client = client
@@ -57,11 +57,11 @@ class ServiceMqtt:
         self._client.publish(self._abs_topic(parts), self._json(payload), qos, retain)
 
     def publish_text_abs(self, topic: str, text: str, *, qos: int = 1, retain: bool = False) -> None:
-        """Text unverändert an ein absolutes Topic (z. B. baresip-Befehle)."""
+        """Publish text unchanged to an absolute topic (e.g. baresip commands)."""
         self._client.publish(topic, text, qos, retain)
 
     def subscribe(self, topic: str, handler: Callable[[str, bytes], None], qos: int = 1) -> None:
-        """Absolutes Topic (Wildcards erlaubt) abonnieren; bleibt über Wiederverbindungen erhalten."""
+        """Subscribe to an absolute topic (wildcards allowed); kept across reconnects."""
         self._subscriptions.append((topic, handler, qos))
         if self.connected:
             self._client.subscribe(topic, qos)
@@ -71,15 +71,15 @@ class ServiceMqtt:
 
     def set_status(self, state: str) -> None:
         if state not in STATUS_VALUES:
-            raise ValueError(f"ungültiger Status: {state}")
+            raise ValueError(f"invalid status: {state}")
         self.status = state
         self.publish_raw("status", state, retain=True)
 
     def heartbeat(self) -> None:
-        """Aus der Hauptschleife aufrufen: wiederholt den Status alle heartbeat_s Sekunden.
+        """Call from the main loop: repeats the status every heartbeat_s seconds.
 
-        Hängt die Hauptschleife, bleibt die Wiederholung aus – in IP-Symcon an der
-        „letzten Aktualisierung“ der Status-Variable erkennbar.
+        If the main loop hangs, the repetition stops - visible in the home automation as
+        the status variable's "last update" getting old.
         """
         if self.settings.heartbeat_s <= 0:
             return
@@ -114,7 +114,7 @@ class ServiceMqtt:
     def _on_connect(self, client, userdata, flags, reason_code, properties=None) -> None:
         failed = getattr(reason_code, "is_failure", reason_code != 0)
         if failed:
-            log.warning("MQTT-Verbindung abgelehnt: %s", reason_code)
+            log.warning("MQTT connection refused: %s", reason_code)
             return
         if self._command_handler is not None:
             self._client.subscribe(self.topic("cmd"), 1)
@@ -124,8 +124,8 @@ class ServiceMqtt:
         for cb in self._connected_callbacks:
             try:
                 cb()
-            except Exception:  # darf den Netzwerk-Thread von paho nicht beenden
-                log.exception("Fehler in on_connected-Callback")
+            except Exception:  # must not end paho's network thread
+                log.exception("error in on_connected callback")
 
     def _on_message(self, client, userdata, msg) -> None:
         for topic, handler, _qos in self._subscriptions:
@@ -133,18 +133,18 @@ class ServiceMqtt:
                 try:
                     handler(msg.topic, msg.payload)
                 except Exception as exc:
-                    self.publish_error(f"Fehler bei {msg.topic}: {exc}")
+                    self.publish_error(f"error handling {msg.topic}: {exc}")
         if msg.topic != self.topic("cmd") or self._command_handler is None:
             return
         try:
             data = json.loads(msg.payload.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            self.publish_error(f"ungültiges JSON auf {msg.topic}: {exc}")
+            self.publish_error(f"invalid JSON on {msg.topic}: {exc}")
             return
         if not isinstance(data, dict):
-            self.publish_error(f"Befehl auf {msg.topic} muss ein JSON-Objekt sein")
+            self.publish_error(f"command on {msg.topic} must be a JSON object")
             return
         try:
             self._command_handler(data)
-        except Exception as exc:  # Befehlsfehler dürfen den Dienst nicht beenden
+        except Exception as exc:  # command errors must not end the service
             self.publish_error(str(exc))

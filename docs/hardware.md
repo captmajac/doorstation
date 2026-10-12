@@ -1,80 +1,82 @@
+**English** | [Deutsch](de/hardware.md)
+
 # Hardware
 
-## Komponenten
+## Components
 
-| Komponente | Verwendet | Hinweise |
+| Component | Used | Notes |
 |---|---|---|
-| Raspberry Pi | Pi 3 Model B oder Pi 4 | Gleiche Stiftleiste; dieselbe SD-Karte läuft auf beiden. Netzteil Pi 3: 5 V / 2,5 A (Micro-USB), Pi 4: 5 V / 3 A (USB-C). |
-| NFC-Leser | Elechouse NFC Module V3 (PN532) bzw. Nachbau | Betrieb per UART (HSU), VCC an **5 V**. Bei schlechter Home-Key-Erkennung: Elechouse PN532 V4. |
-| USB-Soundkarte | C-Media USB Audio (z. B. `0d8c:000c`, `0d8c:0014`) | Getrennte 3,5-mm-Buchsen für Lautsprecher und Mikrofon. |
-| Lautsprecher | kleiner Lautsprecher an der Kopfhörerbuchse | Ein Klangvolumen (Gehäuse) hinter dem Lautsprecher verbessert den Klang deutlich. |
-| Mikrofon | Elektret-Mikrofon mit 3,5-mm-Stecker | Abstand zum Lautsprecher so groß wie möglich (weniger Echo). |
-| Klingeltaster | Taster, schaltet gegen GND | |
-| Reedkontakte | 2 Stück für Briefklappe und Kastentür, schalten gegen GND | Öffner oder Schließer – die Logik stellt `active` in der Konfiguration ein. |
-| Bewegungsmelder | HC-SR501 (PIR) | Versorgung 5 V, Ausgang 3,3 V. Haltezeit (Poti „Tx“) und Retrigger-Jumper am Modul. |
+| Raspberry Pi | Pi 3 Model B or Pi 4 | Same header; the same SD card runs on both. Power supply Pi 3: 5 V / 2.5 A (Micro-USB), Pi 4: 5 V / 3 A (USB-C). |
+| NFC reader | Elechouse NFC Module V3 (PN532) or clone | UART mode (HSU), VCC to **5 V**. If Home Key detection is poor: Elechouse PN532 V4. |
+| USB sound card | C-Media USB Audio (e.g. `0d8c:000c`, `0d8c:0014`) | Separate 3.5 mm jacks for speaker and microphone. |
+| Speaker | small speaker on the headphone jack | An enclosure behind the speaker improves the sound considerably. |
+| Microphone | electret microphone with 3.5 mm plug | Keep it as far from the speaker as possible (less echo). |
+| Bell button | push button, switches to GND | |
+| Reed contacts | 2 for the mail flap and the mailbox door, switch to GND | Normally closed or normally open – `active` in the configuration sets the logic. |
+| Motion sensor | HC-SR501 (PIR) | Supply 5 V, output 3.3 V. Hold time (pot "Tx") and retrigger jumper on the module. |
 
-## Belegung der Stiftleiste
+## Header pinout
 
-![Belegung der Stiftleiste](images/gpio-belegung.svg)
+![Header pinout](images/gpio-pinout.svg)
 
-Pin-Nummern sind physische Pins, dazu die BCM-Nummer, die die Konfiguration verwendet. **Orientierung:** Pin 1 liegt am Ende der Leiste **ohne** USB-/LAN-Buchsen in der **inneren** Reihe (eckiger Lötpunkt). Ungerade Pins = innen, gerade = Platinenrand.
+Pin numbers are physical pins, plus the BCM number used by the configuration. **Orientation:** pin 1 is at the end of the header **without** the USB/LAN jacks, in the **inner** row (square solder pad). Odd pins = inner row, even pins = board edge.
 
-| Pin | Funktion | Angeschlossen an |
+| Pin | Function | Connected to |
 |---|---|---|
 | 2 | 5 V | PN532 VCC |
-| 4 | 5 V | Bewegungsmelder VCC |
+| 4 | 5 V | motion sensor VCC |
 | 6 | GND | PN532 GND |
 | 8 | BCM 14 · TXD | PN532 UART |
 | 10 | BCM 15 · RXD | PN532 UART |
-| 20 | GND | Bewegungsmelder GND |
-| 21 | BCM 9 | Klingeltaster |
-| 25 | GND | Klingeltaster |
-| 26 | BCM 7 | Bewegungsmelder OUT |
-| 33 | BCM 13 | Reedkontakt Kastentür |
-| 34 | GND | Reedkontakte (gemeinsame Masse) |
-| 35 | BCM 19 | Reedkontakt Briefklappe |
+| 20 | GND | motion sensor GND |
+| 21 | BCM 9 | bell button |
+| 25 | GND | bell button |
+| 26 | BCM 7 | motion sensor OUT |
+| 33 | BCM 13 | reed contact mailbox door |
+| 34 | GND | reed contacts (common ground) |
+| 35 | BCM 19 | reed contact mail flap |
 
-**Nie 5 V (Pin 2/4) an einen GPIO-Pin legen** – die GPIOs vertragen nur 3,3 V.
+**Never connect 5 V (pin 2/4) to a GPIO pin** – the GPIOs only tolerate 3.3 V.
 
-## Verschaltung je Bauteil
+## Wiring per part
 
 ### PN532 (UART)
 
-| PN532 | → | Pi-Pin |
+| PN532 | → | Pi pin |
 |---|---|---|
-| VCC | → | Pin 2 (5 V) |
-| GND | → | Pin 6 (GND) |
-| TXD | → | Pin 10 (RXD) |
-| RXD | → | Pin 8 (TXD) |
+| VCC | → | pin 2 (5 V) |
+| GND | → | pin 6 (GND) |
+| TXD | → | pin 10 (RXD) |
+| RXD | → | pin 8 (TXD) |
 
-- **DIP-Schalter auf HSU (UART)** – bei V3-Modulen beide auf 0/OFF (Aufdruck auf der Platine).
-- **TX/RX gekreuzt.** Die Beschriftung mancher Nachbauten ist vertauscht: Kommt keine Antwort vom Leser, die beiden Datenleitungen tauschen – das schadet nicht.
-- **VCC an 5 V:** Das V3-Modul hat einen eigenen 3,3-V-Regler (VCC 3,3–5,5 V, TXD/RXD bleiben 3,3 V). An 3,3 V treten nach Lesevorgängen häufig Übertragungsfehler auf. **5 V nur bei Modulen mit Regler.**
-- Auf dem Pi: `enable_uart=1`, `dtoverlay=disable-bt`, serielle Konsole aus – erledigt `install.sh`. Der Leser ist dann `/dev/ttyAMA0`.
+- **DIP switches to HSU (UART)** – on V3 modules both to 0/OFF (printed on the board).
+- **TX/RX crossed.** Some clones have the labels swapped: if the reader does not answer, swap the two data lines – it does no harm.
+- **VCC to 5 V:** the V3 module has its own 3.3 V regulator (VCC 3.3–5.5 V, TXD/RXD stay at 3.3 V). At 3.3 V, transmission errors after reads are common. **5 V only for modules with a regulator.**
+- On the Pi: `enable_uart=1`, `dtoverlay=disable-bt`, serial console off – `install.sh` does this. The reader is then `/dev/ttyAMA0`.
 
-### Klingeltaster und Reedkontakte
+### Bell button and reed contacts
 
-Jeweils zwischen GPIO-Pin und GND. In `/etc/doorstation/gpio.yaml`: `pull: up` (interner Pull-up), `active: low` – ein geschlossener Kontakt zieht den Pin auf 0 V.
+Each between the GPIO pin and GND. In `/etc/doorstation/gpio.yaml`: `pull: up` (internal pull-up), `active: low` – a closed contact pulls the pin to 0 V.
 
-| Eingang | GPIO | GND |
+| Input | GPIO | GND |
 |---|---|---|
-| Klingel | Pin 21 (BCM 9) | Pin 25 |
-| Kastentür | Pin 33 (BCM 13) | Pin 34 |
-| Briefklappe | Pin 35 (BCM 19) | Pin 34 |
+| Bell | pin 21 (BCM 9) | pin 25 |
+| Mailbox door | pin 33 (BCM 13) | pin 34 |
+| Mail flap | pin 35 (BCM 19) | pin 34 |
 
-- **Reedkontakte:** Je nach Bauart und Montage ist der Kontakt bei geschlossener Klappe offen oder geschlossen. Die Beispielkonfiguration (`active: low`) meldet `open`, wenn der Kontakt geschlossen ist, d. h. der Pin auf 0 V liegt. Passt das nicht, `active: high` setzen. Prüfen mit `pinctrl get 13,19` (Raspberry Pi OS 13; früher `raspi-gpio`) bei offener und geschlossener Klappe.
-- Externe Pull-up-Widerstände (z. B. 10 kΩ gegen 3,3 V) sind bei langen Leitungen sinnvoll; der interne Pull-up stört dabei nicht.
+- **Reed contacts:** depending on type and mounting, the contact is open or closed with the flap shut. The example configuration (`active: low`) reports `open` when the contact is closed, i.e. the pin is at 0 V. If that does not fit, set `active: high`. Check with `pinctrl get 13,19` (Raspberry Pi OS 13; formerly `raspi-gpio`) with the flap open and closed.
+- External pull-up resistors (e.g. 10 kΩ to 3.3 V) are useful for long wires; the internal pull-up does not interfere.
 
-### Bewegungsmelder HC-SR501
+### HC-SR501 motion sensor
 
-| HC-SR501 | → | Pi-Pin |
+| HC-SR501 | → | Pi pin |
 |---|---|---|
-| VCC | → | Pin 4 (5 V) |
-| OUT | → | Pin 26 (BCM 7) |
-| GND | → | Pin 20 (GND) |
+| VCC | → | pin 4 (5 V) |
+| OUT | → | pin 26 (BCM 7) |
+| GND | → | pin 20 (GND) |
 
-Der Ausgang liefert bei Bewegung 3,3 V (`active: high`, `pull: off`). Häufiges Auslösen über die Haltezeit am Modul und `min_interval_s` dämpfen.
+The output delivers 3.3 V on motion (`active: high`, `pull: off`). Damp frequent triggering with the module's hold time and `min_interval_s`.
 
 ### Audio
 
-USB-Soundkarte an einen USB-Port, Lautsprecher an die Kopfhörerbuchse, Mikrofon an die Mikrofonbuchse. Die eingebauten Audioausgänge des Pi (Klinke, HDMI) schaltet `install.sh` ab – die USB-Karte ist dann das einzige Audiogerät. Reglernamen unterscheiden sich je Stick: `sudo ./install.sh audio-info`, dann `/etc/doorstation/audio.yaml` anpassen (siehe [dienste/sip.md](dienste/sip.md)).
+USB sound card in a USB port, speaker on the headphone jack, microphone on the microphone jack. `install.sh` disables the Pi's built-in audio outputs (jack, HDMI) – the USB card is then the only audio device. Control names differ per stick: `sudo ./install.sh audio-info`, then adjust `/etc/doorstation/audio.yaml` (see [services/sip.md](services/sip.md#audio)).

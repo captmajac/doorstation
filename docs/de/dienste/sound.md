@@ -1,3 +1,5 @@
+[English](../../services/sound.md) | **Deutsch**
+
 # Dienst `sound`
 
 Spielt benannte Töne und Ansagen über den Lautsprecher ab – auf Befehl der Hausautomation (z. B. „Du hast Post“, „Tür öffnet“) oder des RFID-Dienstes (Lese-Ton). Die Hausautomation wählt nur **Namen**; welche Datei dahintersteht, legt allein `sound.yaml` fest.
@@ -13,10 +15,11 @@ queue_size: 3             # wartende Töne; der älteste fällt heraus
 max_play_s: 120           # Zwangsende eines Tons
 target: ec_sink           # PipeWire-Ausgabe
 sounds:
-  beep:         { file: /var/lib/doorstation/sounds/beep.wav, volume: 0.6 }
-  post:         { file: /var/lib/doorstation/sounds/post.wav }
-  tuer_oeffnet: { file: /var/lib/doorstation/sounds/tuer_oeffnet.wav }
-  schrei:       { file: /var/lib/doorstation/sounds/schrei.wav, volume: 1.0 }
+  beep:                { file: /var/lib/doorstation/sounds/beep.wav, volume: 0.6 }
+  you_have_mail:       { file: /var/lib/doorstation/sounds/you_have_mail.wav }
+  door_opening:        { file: /var/lib/doorstation/sounds/door_opening.wav }
+  parcel_dropoff:      { file: /var/lib/doorstation/sounds/parcel_dropoff.wav }
+  easteregg_halloween: { file: /var/lib/doorstation/sounds/easteregg_halloween.wav, volume: 1.0 }
 ```
 
 - Namen: `a–z`, `0–9`, `_`. Formate: WAV, FLAC, OGG.
@@ -31,16 +34,16 @@ sounds:
 
 | Befehl | Wirkung |
 |---|---|
-| `{"action":"play","name":"post"}` | abspielen bzw. in die Warteschlange |
-| `{"action":"play","name":"post","volume":0.5}` | mit abweichender Lautstärke |
-| `{"action":"play","name":"schrei","interrupt":true}` | laufenden Ton abbrechen, Warteschlange leeren, sofort spielen |
+| `{"action":"play","name":"you_have_mail"}` | abspielen bzw. in die Warteschlange |
+| `{"action":"play","name":"you_have_mail","volume":0.5}` | mit abweichender Lautstärke |
+| `{"action":"play","name":"door_opening","interrupt":true}` | laufenden Ton abbrechen, Warteschlange leeren, sofort spielen |
 | `{"action":"stop"}` | abbrechen, Warteschlange leeren |
 
 Lautstärke: Befehl → Eintrag in `sound.yaml` → `default_volume`.
 
 | Topic | Inhalt |
 |---|---|
-| `doorstation/sound/state` (retained) | `{"ts","state":"playing","name":"post"}` bzw. `{"ts","state":"idle"}` |
+| `doorstation/sound/state` (retained) | `{"ts","state":"playing","name":"you_have_mail"}` bzw. `{"ts","state":"idle"}` |
 | `doorstation/sound/available` (retained) | `{"ts","names":[…]}` |
 | `doorstation/sound/error` | unbekannter Name, ungültige Lautstärke, Abspielfehler |
 | `doorstation/sound/status` | `online` / `degraded` (drei Abspielfehler in Folge) / `offline` |

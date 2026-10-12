@@ -62,8 +62,8 @@ def test_state_trailing_reports_final_state():
     c.t += 1; assert s.on_level(True) is None
     c.t += 1; assert s.on_level(False) is None
     c.t += 1; assert s.on_level(True) is None
-    c.t += 7; assert s.poll() is None  # Endzustand open == gemeldet
-    c.t += 1; assert s.on_level(False) == "closed"  # Sperrfenster abgelaufen: sofort
+    c.t += 7; assert s.poll() is None  # final state open == reported
+    c.t += 1; assert s.on_level(False) == "closed"  # throttle window over: immediately
 
 
 def test_state_no_duplicate_report():
@@ -102,7 +102,7 @@ def test_no_release_for_throttled_press():
     b = ButtonInput(btn(report_release=True, min_interval_s=2), c)
     b.on_level(True); b.on_level(False); b.pop_release()
     c.t += 1
-    assert b.on_level(True) is False          # gedrosselt
+    assert b.on_level(True) is False          # throttled
     b.on_level(False)
     assert b.pop_release() is False
 

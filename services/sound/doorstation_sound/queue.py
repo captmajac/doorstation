@@ -1,4 +1,4 @@
-"""Warteschlange: ein Ton nach dem anderen, Abbrechen, Zwangsende."""
+"""Queue: one sound after another, cancel, forced end."""
 
 import time
 from collections import deque
@@ -22,7 +22,7 @@ class PlayQueue:
         self.player = player
         self.max_play_s = max_play_s
         self._clock = clock
-        self._waiting: deque[Job] = deque(maxlen=queue_size)  # voll → ältester fällt heraus
+        self._waiting: deque[Job] = deque(maxlen=queue_size)  # full -> oldest is dropped
         self.current: Job | None = None
         self._started_at = 0.0
         self._reported_playing = False
@@ -54,14 +54,14 @@ class PlayQueue:
                 self.current = None
             elif self._clock() - self._started_at >= self.max_play_s:
                 self.player.stop()
-                events.append(("error", f"{self.current.name}: nach {self.max_play_s:.0f} s abgebrochen"))
+                events.append(("error", f"{self.current.name}: stopped after {self.max_play_s:.0f} s"))
                 self.current = None
         if self.current is None and self._waiting:
             job = self._waiting.popleft()
             try:
                 self.player.start(job.file, job.volume)
-            except OSError as exc:  # pw-play fehlt o. Ä.: melden, Dienst läuft weiter
-                events.append(("error", f"{job.name}: Abspielen nicht möglich: {exc}"))
+            except OSError as exc:  # pw-play missing or similar: report, service keeps running
+                events.append(("error", f"{job.name}: cannot play: {exc}"))
                 return events
             self.current = job
             self._started_at = self._clock()

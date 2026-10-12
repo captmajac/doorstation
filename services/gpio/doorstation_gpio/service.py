@@ -1,4 +1,4 @@
-"""Verbindet Eingangslogik, Hardware-Backend und MQTT."""
+"""Connects input logic, hardware backend and MQTT."""
 
 import logging
 import threading
@@ -35,7 +35,7 @@ class GpioService:
         for name, state in self.states.items():
             state.initial(self.backend.read(name))
         self.republish()
-        # Läuft im Netzwerk-Thread von paho: nur vormerken, veröffentlicht wird in step().
+        # Runs in paho's network thread: only flag it, step() publishes.
         self.mqtt.on_connected(self._republish_due.set)
 
     def republish(self) -> None:
@@ -65,8 +65,8 @@ class GpioService:
 
     def _publish_press(self, name: str, ring: bool) -> None:
         if not self.mqtt.connected:
-            # Tastendrücke ohne Broker verwerfen: nachgeliefert käme der Anruf verspätet.
-            log.warning("Taster %s ohne MQTT-Verbindung gedrückt – verworfen", name)
+            # Drop presses without a broker: delivered later, the call would come too late.
+            log.warning("button %s pressed without MQTT connection - dropped", name)
             return
         self.mqtt.publish_json(f"input/{name}", {"event": "pressed"})
         if ring:

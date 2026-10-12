@@ -1,9 +1,9 @@
 [Unit]
-Description=Türstation: SIP-Adapter (Klingel → Anruf, Befehle, DTMF)
+Description=Door station: SIP adapter (bell -> call, commands, DTMF)
 Wants=network-online.target
 After=network-online.target mosquitto.service doorstation-baresip.service
 
-# Nie endgültig aufgeben (z. B. USB-Stick beim Booten spät): sonst keine Klingel mehr.
+# Never give up for good (e.g. USB stick late at boot): otherwise no bell.
 StartLimitIntervalSec=0
 
 [Service]
@@ -11,10 +11,10 @@ User=doorstation
 ExecStart=/opt/doorstation/venv/sip/bin/doorstation-sip --config /etc/doorstation/sip.yaml
 Restart=always
 RestartSec=2
-# Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten (bleibt stehen, Status offline)
+# Exit 2 = configuration error: do not restart every 2 s (stays stopped, status offline)
 RestartPreventExitStatus=2
 
-# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+# Hardening - checked by common/tests/test_systemd_units.py and systemd-analyze security
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict

@@ -1,4 +1,4 @@
-"""Konfiguration des GPIO-Dienstes (/etc/doorstation/gpio.yaml)."""
+"""Configuration of the GPIO service (/etc/doorstation/gpio.yaml)."""
 
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -39,48 +39,48 @@ _INPUT_KEYS = {f.name for f in fields(InputConfig)} - {"name"}
 
 def _parse_input(name: str, raw) -> InputConfig:
     def fail(msg: str) -> ConfigError:
-        return ConfigError(f"Eingang '{name}': {msg}")
+        return ConfigError(f"input '{name}': {msg}")
 
     if not isinstance(raw, dict):
-        raise fail("muss ein Mapping sein")
+        raise fail("must be a mapping")
     unknown = sorted(set(raw) - _INPUT_KEYS)
     if unknown:
-        raise fail(f"unbekannte Schlüssel {', '.join(unknown)}")
+        raise fail(f"unknown keys {', '.join(unknown)}")
     raw = dict(raw)
-    if raw.get("pull") is False:  # YAML 1.1 liest "off" als false
+    if raw.get("pull") is False:  # YAML 1.1 reads "off" as false
         raw["pull"] = "off"
     for key in ("pin", "kind"):
         if key not in raw:
-            raise fail(f"'{key}' fehlt")
+            raise fail(f"'{key}' missing")
     kind = raw["kind"]
     if kind not in KINDS:
-        raise fail(f"kind muss {' oder '.join(KINDS)} sein, nicht '{kind}'")
+        raise fail(f"kind must be {' or '.join(KINDS)}, not '{kind}'")
     if not isinstance(raw["pin"], int) or isinstance(raw["pin"], bool) or raw["pin"] < 0:
-        raise fail("pin muss eine BCM-Nummer sein")
+        raise fail("pin must be a BCM number")
     for key, allowed in (("trigger", TRIGGERS), ("active", ACTIVES), ("pull", PULLS)):
         if key in raw and raw[key] not in allowed:
-            raise fail(f"{key} muss {', '.join(allowed)} sein, nicht '{raw[key]}'")
+            raise fail(f"{key} must be {', '.join(allowed)}, not '{raw[key]}'")
     debounce = raw.get("debounce_ms", 0)
     if not isinstance(debounce, int) or isinstance(debounce, bool) or debounce < 0:
-        raise fail("debounce_ms muss eine ganze Zahl ≥ 0 sein")
+        raise fail("debounce_ms must be an integer >= 0")
     interval = raw.get("min_interval_s", 0)
     if not isinstance(interval, (int, float)) or isinstance(interval, bool) or interval < 0:
-        raise fail("min_interval_s muss eine Zahl ≥ 0 sein")
+        raise fail("min_interval_s must be a number >= 0")
     states = raw.get("states")
     if kind == "state":
         if (not isinstance(states, list) or len(states) != 2
                 or not all(isinstance(s, str) and s for s in states) or states[0] == states[1]):
-            raise fail("states muss zwei verschiedene Namen enthalten, z. B. [closed, open]")
+            raise fail("states must contain two different names, e.g. [closed, open]")
         states = (states[0], states[1])
         for key in ("ring", "trigger", "report_release"):
             if key in raw:
-                raise fail(f"'{key}' gibt es nur bei kind: button")
+                raise fail(f"'{key}' only applies to kind: button")
     else:
         if states is not None:
-            raise fail("'states' gibt es nur bei kind: state")
+            raise fail("'states' only applies to kind: state")
         for key in ("ring", "report_release"):
             if key in raw and not isinstance(raw[key], bool):
-                raise fail(f"{key} muss true oder false sein")
+                raise fail(f"{key} must be true or false")
     return InputConfig(
         name=name,
         pin=raw["pin"],
@@ -100,15 +100,15 @@ def load_config(path: Path) -> GpioConfig:
     data = load_yaml(path)
     unknown = sorted(set(data) - {"mqtt", "chip", "inputs"})
     if unknown:
-        raise ConfigError(f"{path}: unbekannte Schlüssel {', '.join(unknown)}")
+        raise ConfigError(f"{path}: unknown keys {', '.join(unknown)}")
     raw_inputs = data.get("inputs")
     if not isinstance(raw_inputs, dict) or not raw_inputs:
-        raise ConfigError(f"{path}: 'inputs' fehlt oder ist leer")
+        raise ConfigError(f"{path}: 'inputs' missing or empty")
     inputs = tuple(_parse_input(str(name), raw) for name, raw in raw_inputs.items())
     seen: dict[int, str] = {}
     for inp in inputs:
         if inp.pin in seen:
-            raise ConfigError(f"Pin {inp.pin} doppelt belegt: '{seen[inp.pin]}' und '{inp.name}'")
+            raise ConfigError(f"pin {inp.pin} used twice: '{seen[inp.pin]}' and '{inp.name}'")
         seen[inp.pin] = inp.name
     return GpioConfig(
         mqtt=MqttSettings.from_dict(data.get("mqtt")),

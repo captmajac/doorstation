@@ -1,4 +1,4 @@
-"""Startpunkt: doorstation-rfid [--config PFAD]"""
+"""Entry point: doorstation-rfid [--config PATH]"""
 
 import argparse
 import logging
@@ -15,8 +15,8 @@ from .config import load_config
 
 log = logging.getLogger("doorstation_rfid")
 
-# kormax loggt über den Root-Logger bei INFO Schlüsselmaterial (Sitzungsschlüssel, Kopplungsdaten).
-# Deshalb läuft der Root-Logger auf WARNING; nur unsere eigenen Logger dürfen INFO schreiben.
+# kormax logs key material (session keys, pairing data) via the root logger at INFO.
+# So the root logger runs at WARNING; only our own loggers may write INFO.
 QUIET_LOGGERS = ("pyhap", "nfc", "zeroconf")
 OWN_LOGGERS = ("doorstation_rfid", "doorstation_common")
 STATE_FILES = ("hap.state", "homekey.json")
@@ -47,10 +47,10 @@ def secure_state_files(state_dir: Path) -> None:
 
 
 class PairingWatch:
-    """Paarung melden (bei Änderung und nach Wiederverbindung), Dateirechte nachziehen.
+    """Report the pairing (on change and after reconnect), tighten file permissions.
 
-    check() läuft zyklisch im Überwachungs-Thread und fängt jede Ausnahme ab – sonst endete
-    der Thread still und Paarungsänderungen würden nicht mehr gemeldet.
+    check() runs periodically in the watch thread and catches every exception - otherwise the
+    thread would end silently and pairing changes would no longer be reported.
     """
 
     def __init__(self, mqtt: ServiceMqtt, is_paired, pincode, state_dir: Path) -> None:
@@ -62,7 +62,7 @@ class PairingWatch:
         self._republish_due = threading.Event()
 
     def republish(self) -> None:
-        """Aus dem paho-Thread: nur vormerken, gemeldet wird in check()."""
+        """From paho's thread: only flag it, check() reports."""
         self._republish_due.set()
 
     def check(self) -> None:
@@ -74,10 +74,10 @@ class PairingWatch:
                 self._paired = now
                 self._mqtt.publish_json("pairing", {"paired": now}, retain=True)
                 if changed and not now:
-                    log.warning("Leser nicht gepaart – Kopplungscode für die Home-App: %s", self._pincode())
+                    log.warning("reader not paired - setup code for the Home app: %s", self._pincode())
             secure_state_files(self._state_dir)
         except Exception:
-            log.exception("Überwachung der Paarung fehlgeschlagen")
+            log.exception("pairing watch failed")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     mqtt = ServiceMqtt("rfid", cfg.mqtt)
     reporter = Reporter(mqtt, cfg)
     clf = BroadcastFrameContactlessFrontend(path=cfg.nfc_path, broadcast_enabled=True)
-    repository = AtomicRepository(str(cfg.state_dir / "homekey.json"))  # kormax schreibt nicht atomar
+    repository = AtomicRepository(str(cfg.state_dir / "homekey.json"))  # kormax does not write atomically
     service = Service(clf, repository=repository, express=cfg.express, finish=cfg.finish, flow=cfg.flow)
     driver = AccessoryDriver(port=cfg.hap_port, persist_file=str(cfg.state_dir / "hap.state"))
     accessory = QuietLock(driver, cfg.accessory_name, service=service, on_homekey=lambda ep: None)
@@ -135,9 +135,9 @@ def main(argv: list[str] | None = None) -> int:
     mqtt.start()
     threading.Thread(target=loop.run, args=(stop,), name="nfc", daemon=True).start()
     threading.Thread(target=watch, name="watch", daemon=True).start()
-    log.info("gestartet, Leser %s", cfg.nfc_path)
+    log.info("started, reader %s", cfg.nfc_path)
     try:
-        driver.start()  # blockiert bis shutdown()
+        driver.start()  # blocks until shutdown()
     finally:
         stop.set()
         mqtt.stop()

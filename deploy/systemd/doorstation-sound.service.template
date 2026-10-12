@@ -1,5 +1,5 @@
 [Unit]
-Description=Türstation: Ansagen und Töne
+Description=Door station: announcements and sounds
 Wants=network-online.target user@@UID@.service
 After=network-online.target mosquitto.service user@@UID@.service doorstation-baresip.service
 StartLimitIntervalSec=0
@@ -10,10 +10,10 @@ Environment=XDG_RUNTIME_DIR=/run/user/@UID@
 ExecStart=/opt/doorstation/venv/sound/bin/doorstation-sound --config /etc/doorstation/sound.yaml
 Restart=always
 RestartSec=2
-# Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten (bleibt stehen, Status offline)
+# Exit 2 = configuration error: do not restart every 2 s (stays stopped, status offline)
 RestartPreventExitStatus=2
 
-# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+# Hardening - checked by common/tests/test_systemd_units.py and systemd-analyze security
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict
@@ -32,7 +32,7 @@ SystemCallArchitectures=native
 SystemCallFilter=@system-service
 UMask=0077
 DevicePolicy=closed
-# PipeWire-Socket des Benutzerdienstes liegt unter /run/user (ProtectHome=yes würde ihn verbergen)
+# The PipeWire socket of the user service lives in /run/user (ProtectHome=yes would hide it)
 ProtectHome=read-only
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 

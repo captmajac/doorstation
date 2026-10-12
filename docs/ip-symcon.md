@@ -1,21 +1,23 @@
-# Anbindung an IP-Symcon
+**English** | [Deutsch](de/ip-symcon.md)
 
-Die Türstation spricht nur mit ihrem lokalen Mosquitto. Eine Mosquitto-Bridge verbindet sich von dort als Client mit einer eigenen MQTT-Server-Instanz in IP-Symcon.
+# IP-Symcon integration
+
+The door station only talks to its local Mosquitto. From there, a Mosquitto bridge connects as a client to a dedicated MQTT server instance in IP-Symcon.
 
 ```
-Pi (Briefkasten)                                IP-Symcon (192.168.178.10)
-Dienste → Mosquitto :1883 ── Bridge ──────────→ Server Socket :1026 → MQTT Server
-                           ←── nur doorstation/+/cmd ──           → MQTT-Client-Geräte
+Pi (mailbox)                                    IP-Symcon (192.168.178.10)
+Services → Mosquitto :1883 ── Bridge ─────────→ Server Socket :1026 → MQTT Server
+                           ←── only doorstation/+/cmd ──          → MQTT client devices
 ```
 
-## 1. Einrichtung in IP-Symcon
+## 1. Setup in IP-Symcon
 
-1. *Objekt hinzufügen → Instanz → **MQTT Server***. IP-Symcon legt einen **Server Socket** als übergeordnete Instanz an.
-2. Server Socket: **Port 1026**, aktiv.
-3. MQTT Server: Benutzer **`doorstation`** mit Passwort.
-4. Eigener Server nur für die Türstation – nicht mit Shelly & Co. mischen.
+1. *Add object → Instance → **MQTT Server***. IP-Symcon creates a **Server Socket** as parent instance.
+2. Server Socket: **port 1026**, active.
+3. MQTT Server: user **`doorstation`** with password.
+4. A dedicated server for the door station only – do not mix it with Shelly & co.
 
-## 2. Einrichtung auf dem Pi
+## 2. Setup on the Pi
 
 `/etc/doorstation/bridge.yaml`:
 
@@ -26,96 +28,96 @@ username: doorstation
 prefix: doorstation
 ```
 
-Passwort verdeckt ablegen und Bridge einrichten:
+Store the password hidden and set up the bridge:
 
 ```bash
-read -rsp "MQTT-Passwort: " pw; echo; printf "%s\n" "$pw" | sudo install -m 600 /dev/stdin /etc/doorstation/secrets/bridge_password; unset pw
+read -rsp "MQTT password: " pw; echo; printf "%s\n" "$pw" | sudo install -m 600 /dev/stdin /etc/doorstation/secrets/bridge_password; unset pw
 sudo ./install.sh
 ```
 
-Prüfen auf dem Pi: `mosquitto_sub -v -t '$SYS/broker/connection/#' -W 2` → `…/doorstation-bridge/state 1`.
+Check on the Pi: `mosquitto_sub -v -t '$SYS/broker/connection/#' -W 2` → `…/doorstation-bridge/state 1`.
 
-## 3. Was in IP-Symcon ankommt
+## 3. What arrives in IP-Symcon
 
-Im **Konfigurator** der MQTT-Server-Instanz erscheinen alle empfangenen Topics und lassen sich dort als MQTT-Client-Geräte anlegen.
+All received topics appear in the **configurator** of the MQTT server instance and can be created there as MQTT client devices.
 
-| Topic | Art | Inhalt | Verwendung in IP-Symcon |
+| Topic | Kind | Content | Use in IP-Symcon |
 |---|---|---|---|
-| `$SYS/broker/connection/doorstation-bridge/state` | Zustand | `1` verbunden, `0` getrennt | „Türstation erreichbar“ – bei `0` Meldung |
-| `doorstation/<dienst>/status` | Zustand | `online` / `offline` / `degraded`, alle `heartbeat_s` (Vorgabe 5 min) wiederholt | Überwachung je Dienst; „letzte Aktualisierung“ älter als 2 × `heartbeat_s` → Dienst hängt |
-| `doorstation/event/ring` | Ereignis, **QoS 0** | `{"ts","source":"bell"}` | Auslöser für Post-/Halloween-Logik, Push-Nachricht |
-| `doorstation/gpio/input/bell` | Ereignis | `{"ts","event":"pressed"}`, mit `report_release: true` beim Loslassen `{"ts","event":"released"}` | Anzeige „Klingel gedrückt“ – für Automatiken `event/ring` nutzen (kommt nur beim Drücken) |
-| `doorstation/gpio/input/motion` | Zustand | `{"ts","state":"idle"\|"motion"}` | Bewegung am Briefkasten |
-| `doorstation/gpio/input/mail_flap` | Zustand | `{"ts","state":"closed"\|"open"}` | Briefklappe → „Post da“ |
-| `doorstation/gpio/input/mail_door` | Zustand | `{"ts","state":"closed"\|"open"}` | Kastentür → „Post entnommen“ |
-| `doorstation/sip/call` | Zustand | `{"ts","state","direction","peer","reason"}` | Gesprächsstatus |
-| `doorstation/sip/dtmf` | Ereignis, **QoS 0** | `{"ts","key":"#"}` | `#` → Türöffner, `*` → Licht (nur im Gespräch gemeldet) |
-| `doorstation/sip/target` | Zustand | `{"ts","target":"**701"\|null}` | aktuelles Anrufziel / stumm |
-| `doorstation/rfid/read` | Ereignis, **QoS 0** | `{"ts","type","id"}` | Zutrittsentscheidung |
+| `$SYS/broker/connection/doorstation-bridge/state` | state | `1` connected, `0` disconnected | "door station reachable" – notify on `0` |
+| `doorstation/<service>/status` | state | `online` / `offline` / `degraded`, repeated every `heartbeat_s` (default 5 min) | monitoring per service; "last update" older than 2 × `heartbeat_s` → service hangs |
+| `doorstation/event/ring` | event, **QoS 0** | `{"ts","source":"bell"}` | trigger for mail/Halloween logic, push notification |
+| `doorstation/gpio/input/bell` | event | `{"ts","event":"pressed"}`, with `report_release: true` also `{"ts","event":"released"}` on release | display "bell pressed" – use `event/ring` for automations (only sent on press) |
+| `doorstation/gpio/input/motion` | state | `{"ts","state":"idle"\|"motion"}` | motion at the mailbox |
+| `doorstation/gpio/input/mail_flap` | state | `{"ts","state":"closed"\|"open"}` | mail flap → "you have mail" |
+| `doorstation/gpio/input/mail_door` | state | `{"ts","state":"closed"\|"open"}` | mailbox door → "mail collected" |
+| `doorstation/sip/call` | state | `{"ts","state","direction","peer","reason"}` | call status |
+| `doorstation/sip/dtmf` | event, **QoS 0** | `{"ts","key":"#"}` | `#` → door opener, `*` → light (only reported during a call) |
+| `doorstation/sip/target` | state | `{"ts","target":"**701"\|null}` | current call target / muted |
+| `doorstation/rfid/read` | event, **QoS 0** | `{"ts","type","id"}` | access decision |
 
-**Zustände** (retained, QoS 1) werden nach einem Ausfall nachgeliefert. **Klingel-, RFID- und DTMF-Ereignisse** (QoS 0) bewusst **nicht** – eine verspätete Klingel soll z. B. im Post-Modus nicht die Garage öffnen, ein verspätetes `#` nicht die Tür. Zusätzlich sollte IP-Symcon alte Ereignisse per `ts` verwerfen (siehe 5).
+**States** (retained, QoS 1) are delivered after an outage. **Bell, RFID and DTMF events** (QoS 0) deliberately are **not** – a late bell must not open the garage in mail mode, for example, and a late `#` must not open the door. In addition, IP-Symcon should drop old events by `ts` (see 5).
 
-## 4. Befehle an die Türstation
+## 4. Commands to the door station
 
-Für jedes Befehlstopic eine **MQTT-Client-Geräteinstanz von Hand** anlegen (der Konfigurator zeigt nur empfangene Topics):
+Create an **MQTT client device instance by hand** for each command topic (the configurator only shows received topics):
 
-- *Objekt hinzufügen → Instanz → MQTT Client*, übergeordnet: die MQTT-Server-Instanz der Türstation
-- Topic: `doorstation/sip/cmd` (bzw. `doorstation/sound/cmd`), Datentyp **String**
-- Senden: Wert der Variable setzen – in der Konsole oder per `RequestAction(<VariablenID>, <JSON>)`
+- *Add object → Instance → MQTT Client*, parent: the door station's MQTT server instance
+- Topic: `doorstation/sip/cmd` (or `doorstation/sound/cmd`), data type **String**
+- Sending: set the variable's value – in the console or via `RequestAction(<VariableID>, <JSON>)`
 
-Die Bridge lässt von IP-Symcon **nur** `doorstation/+/cmd` herein, mit QoS 0: Ist der Pi nicht erreichbar, verfällt ein Befehl, statt später nachgeliefert zu werden. Ob ein `set_target` angekommen ist, zeigt `doorstation/sip/target`.
+The bridge lets **only** `doorstation/+/cmd` in from IP-Symcon, with QoS 0: if the Pi is not reachable, a command expires instead of being delivered later. `doorstation/sip/target` shows whether a `set_target` arrived.
 
-| Topic | Befehl | Wirkung |
+| Topic | Command | Effect |
 |---|---|---|
-| `doorstation/sip/cmd` | `{"action":"set_target","target":"**701"}` | Anrufziel setzen |
-| `doorstation/sip/cmd` | `{"action":"set_target","target":null}` | stumm: Klingeln ohne Anruf |
-| `doorstation/sip/cmd` | `{"action":"call","ts":"…"}` | Anruf auslösen (älter als 30 s → verworfen) |
-| `doorstation/sip/cmd` | `{"action":"hangup"}` | Gespräch beenden |
-| `doorstation/sound/cmd` | `{"action":"play","name":"post"}` | Ansage abspielen |
+| `doorstation/sip/cmd` | `{"action":"set_target","target":"**701"}` | set the call target |
+| `doorstation/sip/cmd` | `{"action":"set_target","target":null}` | mute: bell without a call |
+| `doorstation/sip/cmd` | `{"action":"call","ts":"…"}` | start a call (older than 30 s → dropped) |
+| `doorstation/sip/cmd` | `{"action":"hangup"}` | end the call |
+| `doorstation/sound/cmd` | `{"action":"play","name":"you_have_mail"}` | play an announcement |
 
-## 5. Beispielskripte
+## 5. Example scripts
 
-Zeitstempel für Befehle:
+Timestamp for commands:
 
 ```php
 <?php
 function doorstation_ts(): string {
     return (new DateTime())->format('Y-m-d\TH:i:s.vP');
 }
-// Anruf an die Gruppe auslösen
-RequestAction(12345 /* Variable sip/cmd */, json_encode(['action' => 'call', 'ts' => doorstation_ts()]));
-// Klingel stumm schalten
+// call the group
+RequestAction(12345 /* variable sip/cmd */, json_encode(['action' => 'call', 'ts' => doorstation_ts()]));
+// mute the bell
 RequestAction(12345, json_encode(['action' => 'set_target', 'target' => null]));
 ```
 
-Klingel auswerten (Ereignis „bei Änderung“ auf der Variable von `doorstation/event/ring`), alte Klingeln verwerfen:
+Evaluate the bell (event "on change" on the variable of `doorstation/event/ring`), drop old rings:
 
 ```php
 <?php
-$data = json_decode(GetValueString(23456 /* Variable event/ring */), true);
-$alter = time() - (new DateTime($data['ts']))->getTimestamp();
-if ($alter > 30) {
-    IPS_LogMessage('Tuerstation', "Klingel verworfen, $alter s alt");
+$data = json_decode(GetValueString(23456 /* variable event/ring */), true);
+$age = time() - (new DateTime($data['ts']))->getTimestamp();
+if ($age > 30) {
+    IPS_LogMessage('Doorstation', "bell dropped, $age s old");
     return;
 }
-// Post-Modus, Halloween-Modus, Push-Nachricht …
+// mail mode, Halloween mode, push notification …
 ```
 
-Für `sip/dtmf` gilt dasselbe (30 Sekunden), für `rfid/read` 10 Sekunden. Der Pi hat keine Echtzeituhr: Nach einem Stromausfall stimmt seine Uhr erst nach der Zeitsynchronisation (meist Sekunden nach dem Netz) – kurz danach gemeldete Ereignisse können deshalb als „alt“ verworfen werden.
+The same applies to `sip/dtmf` (30 seconds) and to `rfid/read` with 10 seconds. The Pi has no real-time clock: after a power failure its clock is only correct after time synchronization (usually seconds after the network is up) – events reported right before may therefore be dropped as "old".
 
-„Post da“ und Ansage beim Türöffnen (Variablen-IDs anpassen):
+"You have mail" and announcement when opening the door (adjust the variable IDs):
 
 ```php
 <?php
-// Ein Ereignis „bei Änderung“ je Variable (gpio/input/mail_flap und mail_door), beide mit diesem Skript.
-// Nach der auslösenden Variable verzweigen – sonst setzt z. B. eine noch offene Klappe "Post da"
-// beim Öffnen der Kastentür gleich wieder.
+// One event "on change" per variable (gpio/input/mail_flap and mail_door), both using this script.
+// Branch on the triggering variable - otherwise e.g. a flap that is still open would set
+// "mail present" again when the mailbox door is opened.
 $data = json_decode($_IPS['VALUE'], true);
 switch ($_IPS['VARIABLE']) {
-    case 34567: // mail_flap: Briefklappe geöffnet → Post da
-        if ($data['state'] === 'open') SetValueBoolean(45678 /* Post da */, true);
+    case 34567: // mail_flap: flap opened → mail present
+        if ($data['state'] === 'open') SetValueBoolean(45678 /* mail present */, true);
         break;
-    case 34568: // mail_door: Kastentür geöffnet → Post entnommen
+    case 34568: // mail_door: mailbox door opened → mail collected
         if ($data['state'] === 'open') SetValueBoolean(45678, false);
         break;
 }
@@ -123,45 +125,45 @@ switch ($_IPS['VARIABLE']) {
 
 ```php
 <?php
-// nach gültigem rfid/read: Tür öffnen, dann Ansagen (werden nacheinander gespielt)
-// … Schloss öffnen …
-RequestAction(56789 /* Variable sound/cmd */, json_encode(['action' => 'play', 'name' => 'tuer_oeffnet']));
-if (GetValueBoolean(45678 /* Post da */)) {
-    RequestAction(56789, json_encode(['action' => 'play', 'name' => 'post']));
+// after a valid rfid/read: open the door, then announcements (played one after another)
+// … open the lock …
+RequestAction(56789 /* variable sound/cmd */, json_encode(['action' => 'play', 'name' => 'door_opening']));
+if (GetValueBoolean(45678 /* mail present */)) {
+    RequestAction(56789, json_encode(['action' => 'play', 'name' => 'you_have_mail']));
 }
 ```
 
-## 6. Ausfallüberwachung
+## 6. Outage monitoring
 
-Die Dienste wiederholen ihren Status alle `heartbeat_s` (300 s). Dieses Skript zyklisch (z. B. alle 5 min) ausführen und eine nicht leere Ausgabe als Push-Nachricht senden. Es meldet den ersten ausgefallenen oder hängenden Dienst:
+The services repeat their status every `heartbeat_s` (300 s). Run this script periodically (e.g. every 5 min) and send a non-empty output as push notification. It reports the first failed or hanging service:
 
 ```php
 <?php
-$dienste = [                 // Reihenfolge = Priorität
-    'sip'   => 20873,        // Variablen von doorstation/<dienst>/status
+$services = [                // order = priority
+    'sip'   => 20873,        // variables of doorstation/<service>/status
     'gpio'  => 14858,
     'rfid'  => 52788,
     'sound' => 17728,
 ];
-$maxAlter = 2 * 300;         // 2 × heartbeat_s
+$maxAge = 2 * 300;           // 2 × heartbeat_s
 
-$meldung = '';
-foreach ($dienste as $name => $varId) {
+$message = '';
+foreach ($services as $name => $varId) {
     $status = trim((string) GetValue($varId));
-    $alter  = time() - IPS_GetVariable($varId)['VariableUpdated'];
+    $age    = time() - IPS_GetVariable($varId)['VariableUpdated'];
     if ($status !== 'online') {
-        $meldung = "doorstation ausfall: $name ($status)";
-    } elseif ($alter > $maxAlter) {
-        $meldung = "doorstation ausfall: $name (keine Meldung seit " . round($alter / 60) . " min)";
+        $message = "doorstation failure: $name ($status)";
+    } elseif ($age > $maxAge) {
+        $message = "doorstation failure: $name (no update for " . round($age / 60) . " min)";
     }
-    if ($meldung !== '') break;
+    if ($message !== '') break;
 }
-echo $meldung;
+echo $message;
 ```
 
-Fällt der ganze Pi aus, meldet der IP-Symcon-Broker `$SYS/broker/connection/doorstation-bridge/state` = `0` – als erste Prüfung im Skript ergänzen (`!== '1'`).
+If the whole Pi fails, the IP-Symcon broker reports `$SYS/broker/connection/doorstation-bridge/state` = `0` – add this as the first check in the script (`!== '1'`).
 
-## Quellen
+## Sources
 
-- [Symcon Doku – MQTT Server](https://www.symcon.de/en/service/documentation/module-reference/devices/mqtt/mqtt-server/)
-- [Symcon Doku – MQTT Client (Gerät)](https://www.symcon.de/en/service/documentation/module-reference/devices/mqtt/mqtt-client/)
+- [Symcon docs – MQTT Server](https://www.symcon.de/en/service/documentation/module-reference/devices/mqtt/mqtt-server/)
+- [Symcon docs – MQTT Client (device)](https://www.symcon.de/en/service/documentation/module-reference/devices/mqtt/mqtt-client/)

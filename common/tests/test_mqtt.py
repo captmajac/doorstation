@@ -33,7 +33,7 @@ def test_invalid_command_json_reports_error_and_survives():
     calls = []
     m.on_command(calls.append)
     c.simulate_connect()
-    c.simulate_message("doorstation/gpio/cmd", b"{kaputt")
+    c.simulate_message("doorstation/gpio/cmd", b"{broken")
     c.simulate_message("doorstation/gpio/cmd", b"[1,2]")
     c.simulate_message("doorstation/gpio/cmd", b'{"action":"x"}')
     errors = [p for t, p, *_ in c.published if t == "doorstation/gpio/error"]
@@ -100,11 +100,11 @@ def test_subscribe_handler_exception_becomes_error():
     m, c = make()
 
     def boom(t, p):
-        raise ValueError("kaputt")
+        raise ValueError("broken")
 
     m.subscribe("/x", boom)
     c.simulate_message("/x", b"1")
-    assert "kaputt" in c.published[-1][1]
+    assert "broken" in c.published[-1][1]
 
 
 def test_publish_text_abs_unchanged():
@@ -130,7 +130,7 @@ def test_heartbeat_republishes_status_when_due():
     m.start(); c.simulate_connect()
     c.published.clear()
     m.heartbeat()
-    assert c.published == []                       # noch nicht fällig
+    assert c.published == []                       # not due yet
     t[0] += 300
     m.heartbeat()
     assert c.published == [("doorstation/gpio/status", "online", 1, True)]
@@ -162,7 +162,7 @@ def test_heartbeat_skipped_when_disconnected():
 
 
 def test_client_id_suffix_for_parallel_instances():
-    # --simulate neben dem laufenden Dienst: gleiche Client-ID würde sich gegenseitig trennen.
+    # --simulate next to the running service: identical client IDs would disconnect each other.
     from doorstation_common.config import MqttSettings
     from doorstation_common.mqtt import ServiceMqtt
     m = ServiceMqtt("gpio", MqttSettings(), client_id_suffix="-sim")

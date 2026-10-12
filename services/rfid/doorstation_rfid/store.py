@@ -1,10 +1,10 @@
-"""HomeKit-Paarung (homekey.json) atomar speichern.
+"""Save the HomeKit pairing (homekey.json) atomically.
 
-kormax' Repository schreibt bei jedem neuen Lesen eines Home Keys mit open(path, "w") – ein
-Stromausfall in diesem Moment hinterlässt eine leere oder halbe Datei. Beim nächsten Start
-gälte der Leser dann als ungepaart: neu koppeln, alle Home-Key-IDs ändern sich. Hier wird
-in eine Temp-Datei im selben Ordner geschrieben, synchronisiert und erst dann ersetzt.
-Format wie kormax (vendor/…/repository.py, unverändert).
+kormax' Repository writes with open(path, "w") on every new Home Key read - a power
+failure at that moment leaves an empty or partial file. On the next start the reader
+would count as unpaired: pair again, all Home Key IDs change. Here we write to a temp
+file in the same directory, sync it and only then replace the original.
+Same format as kormax (vendor/.../repository.py, unchanged).
 """
 
 import json
@@ -27,7 +27,7 @@ class AtomicRepository(Repository):
 
 def _write_atomic(path: str, text: str) -> None:
     directory = os.path.dirname(os.path.abspath(path))
-    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".homekey-", suffix=".tmp")  # Rechte 600
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".homekey-", suffix=".tmp")  # mode 600
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
@@ -42,6 +42,6 @@ def _write_atomic(path: str, text: str) -> None:
         raise
     dir_fd = os.open(directory, os.O_RDONLY)
     try:
-        os.fsync(dir_fd)  # Umbenennen dauerhaft machen
+        os.fsync(dir_fd)  # make the rename durable
     finally:
         os.close(dir_fd)

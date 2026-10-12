@@ -1,4 +1,4 @@
-"""Zustandsautomat für Anrufe – ohne MQTT und ohne baresip, gibt Effekte zurück."""
+"""State machine for calls - without MQTT or baresip, returns effects."""
 
 import time
 from collections.abc import Callable
@@ -26,7 +26,7 @@ class CallState:
 
 
 def peer_from_uri(uri: str) -> str:
-    """'sip:**610@fritz.box' → '**610'; unbekannte Formen unverändert."""
+    """'sip:**610@fritz.box' → '**610'; unknown forms unchanged."""
     if uri.startswith("sip:") and "@" in uri:
         return uri[4:].split("@", 1)[0]
     return uri
@@ -55,7 +55,7 @@ class CallMachine:
         self.registered = False
         self._direction: str | None = None
         self._peer: str | None = None
-        self._deadline: float | None = None  # Klingel-Timeout, Höchstdauer bzw. Ende der Sperrzeit
+        self._deadline: float | None = None  # ring timeout, maximum duration or end of cooldown
 
     def _enter(self, state: str, reason: str | None = None) -> CallState:
         self.state = state
@@ -98,14 +98,14 @@ class CallMachine:
                 return [self._enter("active")]
             if ev.get("direction") == "incoming":
                 uri = str(ev.get("peeruri", ""))
-                # Nur Anrufe über die FritzBox annehmen – direkte INVITEs aus dem LAN sofort beenden.
+                # Accept calls via the FritzBox only - end direct INVITEs from the LAN immediately.
                 if host_from_uri(uri) not in (self.cfg.fritzbox.lower(), "fritz.box"):
                     return [Hangup()]
                 if self.state in ("idle", "ended"):
                     self._direction = "incoming"
                     self._peer = peer_from_uri(uri)
                     return [self._enter("active")]
-            # Gespräch, das der Automat nicht kennt (z. B. nach Adapter-Neustart): beenden.
+            # Call unknown to the state machine (e.g. after an adapter restart): end it.
             return [Hangup()]
         if typ == "CALL_CLOSED" and self.state in ("calling", "active"):
             return [self._enter("ended", _close_reason(str(ev.get("param", ""))))]

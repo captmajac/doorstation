@@ -1,4 +1,4 @@
-"""Hardware-Zugriff: libgpiod v2 auf dem Pi, Attrappe für Tests und Simulation."""
+"""Hardware access: libgpiod v2 on the Pi, fake backend for tests and simulation."""
 
 import queue
 from collections.abc import Sequence
@@ -22,7 +22,7 @@ class InputBackend(Protocol):
 
 
 class FakeBackend:
-    """Pegel werden per set_level() gesetzt (Tests, --simulate)."""
+    """Levels are set via set_level() (tests, --simulate)."""
 
     def __init__(self, levels: dict[str, bool]) -> None:
         self._levels = dict(levels)
@@ -53,7 +53,7 @@ class FakeBackend:
 
 
 class LibgpiodBackend:
-    """Flanken-Ereignisse mit Kernel-Entprellung über libgpiod v2 (python3-libgpiod)."""
+    """Edge events with kernel debouncing via libgpiod v2 (python3-libgpiod)."""
 
     def __init__(self, chip: str, inputs: Sequence[InputConfig]) -> None:
         import gpiod

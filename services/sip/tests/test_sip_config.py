@@ -15,7 +15,7 @@ def test_example_loads():
 
 
 @pytest.mark.parametrize("body,needle", [
-    ("fritzbox: 1.2.3.4\nusername: HaustürNeu\n", "username"),
+    ("fritzbox: 1.2.3.4\nusername: T\u00fcrstation\n", "username"),
     ("fritzbox: 1.2.3.4\nusername: A\ndefault_target: '12a'\n", "default_target"),
     ("fritzbox: 1.2.3.4\nusername: A\nring_timeout_s: 0\n", "ring_timeout_s"),
     ("fritzbox: 1.2.3.4\nusername: A\nfoo: 1\n", "foo"),

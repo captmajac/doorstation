@@ -1,3 +1,5 @@
+[English](../architecture.md) | **Deutsch**
+
 # Architektur
 
 ## Grundprinzip

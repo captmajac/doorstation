@@ -1,4 +1,4 @@
-"""Testhilfen: Attrappe für den paho-Client."""
+"""Test helpers: fake paho client."""
 
 from types import SimpleNamespace
 

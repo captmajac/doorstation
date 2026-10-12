@@ -30,7 +30,7 @@ def test_mqtt_heartbeat_default_and_override():
 
 
 def test_load_yaml_duplicate_key_rejected(tmp_path):
-    # Sonst überschreibt der zweite Eintrag still den ersten (z. B. zwei Eingänge "bell").
+    # Otherwise the second entry silently overrides the first (e.g. two inputs "bell").
     p = tmp_path / "a.yaml"
     p.write_text("inputs:\n  bell: {pin: 9}\n  bell: {pin: 10}\n")
     with pytest.raises(ConfigError, match="bell"):

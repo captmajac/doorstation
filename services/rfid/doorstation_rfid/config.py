@@ -1,4 +1,4 @@
-"""Konfiguration des RFID-Dienstes (/etc/doorstation/rfid.yaml)."""
+"""Configuration of the RFID service (/etc/doorstation/rfid.yaml)."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +20,7 @@ class RfidConfig:
     feedback_sound: str = "beep"
     state_dir: Path = Path("/var/lib/doorstation/rfid")
     hap_port: int = 51926
-    accessory_name: str = "NFC-Leser Briefkasten"
+    accessory_name: str = "Mailbox NFC Reader"
 
 
 _KEYS = {"mqtt", "nfc_path", "express", "finish", "flow", "repeat_block_s", "feedback_sound",
@@ -31,39 +31,39 @@ def load_config(path: Path) -> RfidConfig:
     data = load_yaml(path)
     unknown = sorted(set(data) - _KEYS)
     if unknown:
-        raise ConfigError(f"{path}: unbekannte Schlüssel {', '.join(unknown)}")
+        raise ConfigError(f"{path}: unknown keys {', '.join(unknown)}")
     kw: dict = {}
     for key in ("nfc_path", "accessory_name"):
         if key in data:
             if not isinstance(data[key], str) or not data[key]:
-                raise ConfigError(f"{path}: {key} muss ein Text sein")
+                raise ConfigError(f"{path}: {key} must be text")
             kw[key] = data[key]
     if "express" in data:
         if not isinstance(data["express"], bool):
-            raise ConfigError(f"{path}: express muss true oder false sein")
+            raise ConfigError(f"{path}: express must be true or false")
         kw["express"] = data["express"]
     if "finish" in data:
         if data["finish"] not in FINISHES:
-            raise ConfigError(f"{path}: finish muss {', '.join(FINISHES)} sein")
+            raise ConfigError(f"{path}: finish must be {', '.join(FINISHES)}")
         kw["finish"] = data["finish"]
     if "flow" in data:
         if data["flow"] not in FLOWS:
-            raise ConfigError(f"{path}: flow muss {', '.join(FLOWS)} sein")
+            raise ConfigError(f"{path}: flow must be {', '.join(FLOWS)}")
         kw["flow"] = data["flow"]
     if "repeat_block_s" in data:
         v = data["repeat_block_s"]
         if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
-            raise ConfigError(f"{path}: repeat_block_s muss eine Zahl > 0 sein")
+            raise ConfigError(f"{path}: repeat_block_s must be a number > 0")
         kw["repeat_block_s"] = float(v)
     if "feedback_sound" in data:
         v = data["feedback_sound"]
         if v is not None and not isinstance(v, str):
-            raise ConfigError(f"{path}: feedback_sound muss ein Name oder leer sein")
+            raise ConfigError(f"{path}: feedback_sound must be a name or empty")
         kw["feedback_sound"] = v or ""
     if "hap_port" in data:
         v = data["hap_port"]
         if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= 65535:
-            raise ConfigError(f"{path}: hap_port muss ein Port sein")
+            raise ConfigError(f"{path}: hap_port must be a port")
         kw["hap_port"] = v
     if "state_dir" in data:
         kw["state_dir"] = Path(str(data["state_dir"]))

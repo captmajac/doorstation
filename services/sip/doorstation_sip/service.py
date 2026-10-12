@@ -1,4 +1,4 @@
-"""SIP-Adapter: verbindet MQTT (Klingel, IP-Symcon), Zustandsautomat und baresip."""
+"""SIP adapter: connects MQTT (bell, home automation), state machine and baresip."""
 
 import json
 import logging
@@ -36,17 +36,17 @@ class SipService:
         self._token = 0
         self._pending_health: str | None = None
         self._misses = 0
-        self._next_health = clock()  # erste Abfrage sofort: Registrierung nach Adapter-Neustart kennen
+        self._next_health = clock()  # first query immediately: learn the registration after an adapter restart
         self._last_call = CallState("idle")
         self._registration = "unknown"
 
-    # --- Start und Wiederverbindung -------------------------------------
+    # --- start and reconnect --------------------------------------------
     def start(self) -> None:
-        # Ein Gespräch, das baresip noch aus der Zeit vor einem Adapter-Neustart hält, ist
-        # unbekannt (kein Zeitlimit) – daher zuerst auflegen.
+        # A call baresip still holds from before an adapter restart is unknown
+        # (no time limit) - so hang up first.
         self._send("hangup")
         prefix = self.cfg.mqtt.prefix
-        # Alle Callbacks laufen im paho-Thread: nur einreihen, verarbeitet wird in step().
+        # All callbacks run in paho's thread: only enqueue, step() processes.
         self.mqtt.subscribe(f"{prefix}/event/ring", lambda t, p: self._queue.put(("ring", p)))
         self.mqtt.subscribe(f"{BARESIP}/event", lambda t, p: self._queue.put(("baresip", p)))
         self.mqtt.subscribe(f"{BARESIP}/command_resp/+", lambda t, p: self._queue.put(("resp", (t, p))))
@@ -59,7 +59,7 @@ class SipService:
         self._publish_call(self._last_call)
         self.mqtt.publish_json("registration", {"state": self._registration}, retain=True)
 
-    # --- Hauptschleife --------------------------------------------------
+    # --- main loop ------------------------------------------------------
     def step(self, timeout_s: float = 0.2) -> None:
         try:
             item = self._queue.get(timeout=timeout_s) if timeout_s > 0 else self._queue.get_nowait()
@@ -73,11 +73,11 @@ class SipService:
         self.mqtt.heartbeat()
 
     def _handle_safely(self, item) -> None:
-        """Ein fehlerhafter Eintrag darf weder die übrigen verlieren noch den Dienst beenden."""
+        """A failing item must neither lose the others nor end the service."""
         try:
             self._handle(*item)
         except Exception as exc:
-            log.exception("Fehler bei %s", item[0])
+            log.exception("error handling %s", item[0])
             self.mqtt.publish_error(f"{item[0]}: {exc}")
 
     def _handle(self, kind: str, data) -> None:
@@ -108,7 +108,7 @@ class SipService:
         try:
             ev = json.loads(payload.decode("utf-8"))
         except (UnicodeDecodeError, ValueError):
-            log.warning("ungültiges baresip-Ereignis: %r", payload[:200])
+            log.warning("invalid baresip event: %r", payload[:200])
             return
         if not isinstance(ev, dict):
             return
@@ -118,21 +118,21 @@ class SipService:
             if self._misses < 2:
                 self._set_status("online" if typ == "REGISTER_OK" else "degraded")
         elif typ == "CALL_DTMF_START":
-            # Nur im eigenen Gespräch: "#" öffnet in der Hausautomation die Tür. Eine Taste aus
-            # einem unbekannten oder gerade abgewiesenen Anruf darf nie gemeldet werden.
+            # Only during our own call: "#" opens the door in the home automation. A key from
+            # an unknown or just rejected call must never be reported.
             if self.machine.state == "active":
                 self.mqtt.publish_json("dtmf", {"key": str(ev.get("param", ""))})
             else:
-                log.warning("DTMF ohne laufendes Gespräch verworfen")
+                log.warning("DTMF without an active call dropped")
         self._apply(self.machine.baresip_event(ev))
 
     def _reginfo(self, payload: bytes) -> None:
-        """Antwort auf reginfo: zeigt, ob baresip angemeldet ist (auch nach Adapter-Neustart)."""
+        """Response to reginfo: shows whether baresip is registered (also after an adapter restart)."""
         try:
             data = str(json.loads(payload.decode("utf-8")).get("data", ""))
         except (UnicodeDecodeError, ValueError, AttributeError):
             data = ""
-        registered = _REGINFO_OK.search(_ANSI.sub(" ", data)) is not None  # baresip färbt "OK" ein
+        registered = _REGINFO_OK.search(_ANSI.sub(" ", data)) is not None  # baresip colors "OK"
         self.machine.registered = registered
         self._set_registration("registered" if registered else "failed")
         self._set_status("online" if registered else "degraded")
@@ -164,30 +164,30 @@ class SipService:
     def _publish_target(self) -> None:
         self.mqtt.publish_json("target", {"target": self.target}, retain=True)
 
-    # --- Gesundheit -----------------------------------------------------
+    # --- health ---------------------------------------------------------
     def _health(self) -> None:
         if self._clock() < self._next_health:
             return
         self._next_health = self._clock() + self.cfg.healthcheck_s
         if self._pending_health is not None:
             self._misses += 1
-            log.warning("baresip antwortet nicht (%d)", self._misses)
+            log.warning("baresip not responding (%d)", self._misses)
             if self._misses == 2:
                 self._set_status("degraded")
-                self._set_registration("unknown")  # ohne Antwort ist der Anmeldestand unbekannt
+                self._set_registration("unknown")  # without a response the registration state is unknown
                 self._apply(self.machine.reset())
         self._pending_health = self._send("reginfo")
 
-    # --- Befehle von IP-Symcon ------------------------------------------
+    # --- commands from the home automation -----------------------------
     def _command(self, d: dict) -> None:
         action = d.get("action")
         if action == "set_target":
             if "target" not in d:
-                return self.mqtt.publish_error("set_target: 'target' fehlt")
+                return self.mqtt.publish_error("set_target: 'target' missing")
             t = d["target"]
             if t is not None and not valid_target(t):
-                return self.mqtt.publish_error(f"set_target: ungültiges Ziel '{t}'")
-            self.store.save(t)  # zuerst speichern: schlägt es fehl, bleibt das bisherige Ziel
+                return self.mqtt.publish_error(f"set_target: invalid target '{t}'")
+            self.store.save(t)  # save first: if that fails, the previous target stays
             self.target = t
             self._publish_target()
         elif action == "call":
@@ -195,32 +195,32 @@ class SipService:
                 return
             target = d.get("target", self.target)
             if target is None:
-                return self.mqtt.publish_error("call: kein Ziel (stumm)")
+                return self.mqtt.publish_error("call: no target (muted)")
             if not valid_target(target):
-                return self.mqtt.publish_error(f"call: ungültiges Ziel '{target}'")
+                return self.mqtt.publish_error(f"call: invalid target '{target}'")
             if self.machine.state != "idle":
-                return self.mqtt.publish_error(f"call: nicht möglich im Zustand {self.machine.state}")
+                return self.mqtt.publish_error(f"call: not possible in state {self.machine.state}")
             self._apply(self.machine.ring(target))
         elif action == "hangup":
             self._apply(self.machine.hangup())
         else:
-            self.mqtt.publish_error(f"unbekannte Aktion '{action}'")
+            self.mqtt.publish_error(f"unknown action '{action}'")
 
     def _too_old(self, ts) -> bool:
         try:
             parsed = datetime.fromisoformat(str(ts))
             when = parsed.timestamp()
         except (ValueError, OverflowError, OSError):
-            self.mqtt.publish_error(f"call: ungültiger Zeitstempel '{ts}'")
+            self.mqtt.publish_error(f"call: invalid timestamp '{ts}'")
             return True
         if parsed.tzinfo is None:
-            self.mqtt.publish_error(f"call: Zeitstempel '{ts}' ohne Zeitzone – verworfen")
+            self.mqtt.publish_error(f"call: timestamp '{ts}' without time zone - dropped")
             return True
         age = self._wall() - when
         if age > self.cfg.command_max_age_s:
-            self.mqtt.publish_error(f"call: Befehl {age:.0f} s alt – verworfen")
+            self.mqtt.publish_error(f"call: command {age:.0f} s old - dropped")
             return True
-        if -age > self.cfg.command_max_age_s:  # Uhr der Hausautomation geht vor
-            self.mqtt.publish_error(f"call: Befehl {-age:.0f} s in der Zukunft – verworfen")
+        if -age > self.cfg.command_max_age_s:  # home automation clock is ahead
+            self.mqtt.publish_error(f"call: command {-age:.0f} s in the future - dropped")
             return True
         return False

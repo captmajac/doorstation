@@ -1,98 +1,100 @@
-# Installation und Betrieb
+**English** | [Deutsch](de/installation.md)
 
-## 1. SD-Karte vorbereiten
+# Installation and operation
 
-Mit dem Raspberry Pi Imager:
+## 1. Prepare the SD card
 
-- Betriebssystem: **Raspberry Pi OS Lite (64-bit)** (Debian 13 „Trixie“).
-- Hostname, Benutzer, Zeitzone, Tastatur nach Wunsch.
-- **SSH aktivieren**, am besten „nur Public-Key“ mit dem eigenen Schlüssel (`ssh-keygen -t ed25519`, Inhalt von `~/.ssh/id_ed25519.pub` eintragen).
-- LAN empfohlen; WLAN funktioniert ebenfalls.
+With the Raspberry Pi Imager:
 
-Die Karte läuft unverändert auf Pi 3 und Pi 4.
+- Operating system: **Raspberry Pi OS Lite (64-bit)** (Debian 13 "Trixie").
+- Host name, user, time zone, keyboard as you like.
+- **Enable SSH**, preferably "public key only" with your own key (`ssh-keygen -t ed25519`, paste the content of `~/.ssh/id_ed25519.pub`).
+- LAN recommended; Wi-Fi works as well.
 
-## 2. Installieren
+The card runs unchanged on Pi 3 and Pi 4.
 
-Repo auf den Pi bringen (z. B. `git clone` oder `rsync`) und als root ausführen:
+## 2. Install
+
+Copy the repo to the Pi (e.g. `git clone` or `rsync`) and run as root:
 
 ```bash
 sudo ./install.sh
 ```
 
-`install.sh` kann beliebig oft ausgeführt werden (auch für Updates: `git pull`, dann erneut ausführen). Es
+`install.sh` can be run any number of times (also for updates: `git pull`, then run it again). It
 
-- installiert die Pakete (Mosquitto, PipeWire, WirePlumber, baresip, Python),
-- legt den Systembenutzer `doorstation`, die Verzeichnisse und je Dienst ein venv an,
-- richtet den lokalen Mosquitto (nur `127.0.0.1`) und – falls konfiguriert – die Bridge ein,
-- lädt den Paketfilter `doorstation-firewall`: SIP/RTP nur von der FritzBox (andere Ports unberührt),
-- schaltet die UART für den PN532 frei, Bluetooth und serielle Konsole ab, die Onboard-Audioausgänge ab,
-- legt fehlende Konfigurationen aus `config-examples/` unter `/etc/doorstation/` an (**bestehende werden nie überschrieben**),
-- installiert und startet die systemd-Units `doorstation-firewall`, `-gpio`, `-baresip`, `-sip`, `-sound`, `-rfid`.
+- installs the packages (Mosquitto, PipeWire, WirePlumber, baresip, Python),
+- creates the system user `doorstation`, the directories and one venv per service,
+- sets up the local Mosquitto (`127.0.0.1` only) and – if configured – the bridge,
+- loads the packet filter `doorstation-firewall`: SIP/RTP from the FritzBox only (other ports untouched),
+- enables the UART for the PN532, disables Bluetooth and the serial console, disables the onboard audio outputs,
+- creates missing configurations in `/etc/doorstation/` from `config-examples/` (**existing ones are never overwritten**),
+- installs and starts the systemd units `doorstation-firewall`, `-gpio`, `-baresip`, `-sip`, `-sound`, `-rfid`.
 
-Meldet es „bitte neu starten“, einmal `sudo reboot`. Beim ersten Lauf fehlt noch das SIP-Passwort: SIP wird dann mit einer Warnung übersprungen, alles andere eingerichtet – nach Abschnitt 4 `install.sh` erneut ausführen. Warnungen stehen am Ende noch einmal gesammelt.
+If it says "please reboot", run `sudo reboot` once. On the first run the SIP password is still missing: SIP is then skipped with a warning and everything else is set up – run `install.sh` again after section 4. Warnings are repeated in a summary at the end.
 
-## 3. Konfigurieren
+## 3. Configure
 
-Alle Dateien unter `/etc/doorstation/`; nach Änderungen den jeweiligen Dienst neu starten (`sudo systemctl restart doorstation-<dienst>`). Ist die Konfiguration fehlerhaft, bleibt der Dienst stehen (`systemctl status` bzw. `journalctl -u doorstation-<dienst>` nennt Datei und Feld).
+All files are in `/etc/doorstation/`; after changes restart the respective service (`sudo systemctl restart doorstation-<service>`). If the configuration is invalid, the service stays stopped (`systemctl status` or `journalctl -u doorstation-<service>` names the file and field).
 
-| Datei | Dienst | Beschreibung |
+| File | Service | Description |
 |---|---|---|
-| `gpio.yaml` | `doorstation-gpio` | [dienste/gpio.md](dienste/gpio.md) |
-| `sip.yaml` | `doorstation-sip` | [dienste/sip.md](dienste/sip.md) |
-| `audio.yaml` | `doorstation-baresip` | [dienste/sip.md](dienste/sip.md#audio) |
-| `sound.yaml` | `doorstation-sound` | [dienste/sound.md](dienste/sound.md) |
-| `rfid.yaml` | `doorstation-rfid` | [dienste/rfid.md](dienste/rfid.md) |
-| `bridge.yaml` | Mosquitto | Abschnitt 5 unten |
-| `secrets/sip_password` | baresip | SIP-Passwort |
-| `secrets/bridge_password` | Mosquitto | Passwort des MQTT-Servers der Hausautomation |
+| `gpio.yaml` | `doorstation-gpio` | [services/gpio.md](services/gpio.md) |
+| `sip.yaml` | `doorstation-sip` | [services/sip.md](services/sip.md) |
+| `audio.yaml` | `doorstation-baresip` | [services/sip.md](services/sip.md#audio) |
+| `sound.yaml` | `doorstation-sound` | [services/sound.md](services/sound.md) |
+| `rfid.yaml` | `doorstation-rfid` | [services/rfid.md](services/rfid.md) |
+| `bridge.yaml` | Mosquitto | section 5 below |
+| `secrets/sip_password` | baresip | SIP password |
+| `secrets/bridge_password` | Mosquitto | password of the home automation's MQTT server |
 
-Jede Dienst-Konfiguration hat einen `mqtt`-Block (`host`, `port`, `prefix`, `heartbeat_s`). `prefix` ist ein einzelner Topic-Abschnitt (A–Z, a–z, 0–9, `_`, `-`). Doppelte Schlüssel in einer YAML-Datei gelten als Fehler.
+Every service configuration has an `mqtt` block (`host`, `port`, `prefix`, `heartbeat_s`). `prefix` is a single topic level (A–Z, a–z, 0–9, `_`, `-`). Duplicate keys in a YAML file are an error.
 
-Hinweis YAML: Werte, die mit `*` beginnen, in Anführungszeichen setzen (`"**701"`).
+YAML note: quote values starting with `*` (`"**701"`).
 
-## 4. Geheimnisse ablegen
+## 4. Store the secrets
 
-Passwörter verdeckt eingeben, damit sie weder im Terminal-Verlauf noch in Logs landen:
+Enter passwords hidden so they end up neither in the shell history nor in logs:
 
 ```bash
-read -rsp "SIP-Passwort: " pw; echo; printf "%s\n" "$pw" | sudo install -m 600 /dev/stdin /etc/doorstation/secrets/sip_password; unset pw
+read -rsp "SIP password: " pw; echo; printf "%s\n" "$pw" | sudo install -m 600 /dev/stdin /etc/doorstation/secrets/sip_password; unset pw
 ```
 
-Danach `sudo ./install.sh` (erzeugt daraus die baresip-Konfiguration). Für das Bridge-Passwort genauso mit `bridge_password`. Die Dateien gehören root (600); kein Dienst liest sie zur Laufzeit.
+Then run `sudo ./install.sh` (it generates the baresip configuration from it). The same for the bridge password with `bridge_password`. The files belong to root (600); no service reads them at runtime.
 
-## 5. Bridge zur Hausautomation
+## 5. Bridge to the home automation
 
-`/etc/doorstation/bridge.yaml` (Vorlage `config-examples/bridge.yaml`):
+`/etc/doorstation/bridge.yaml` (template `config-examples/bridge.yaml`):
 
 ```yaml
-host: 192.168.178.10      # MQTT-Server der Hausautomation
+host: 192.168.178.10      # MQTT server of the home automation
 port: 1026
 username: doorstation
 prefix: doorstation
 ```
 
-Passwort in `/etc/doorstation/secrets/bridge_password`, dann `sudo ./install.sh`. Ohne `bridge.yaml` oder Passwort wird keine Bridge eingerichtet (bzw. eine vorhandene entfernt). Prüfen:
+Password in `/etc/doorstation/secrets/bridge_password`, then `sudo ./install.sh`. Without `bridge.yaml` or password no bridge is set up (an existing one is removed). Check:
 
 ```bash
 mosquitto_sub -v -t '$SYS/broker/connection/#' -W 2     # → …/doorstation-bridge/state 1
 ```
 
-Einrichtung auf der IP-Symcon-Seite: [ip-symcon.md](ip-symcon.md).
+Setup on the IP-Symcon side: [ip-symcon.md](ip-symcon.md).
 
-## 6. Home Key koppeln
+## 6. Pair the Home Key
 
-Siehe [dienste/rfid.md](dienste/rfid.md#home-key-koppeln). **Nach dem Koppeln sichern** (Abschnitt 7) – ohne die Paarungsdaten muss neu gekoppelt werden und alle Home-Key-IDs ändern sich.
+See [services/rfid.md](services/rfid.md#pairing-the-home-key). **Back up after pairing** (section 7) – without the pairing data you have to pair again and all Home Key IDs change.
 
-## 7. Sicherung
+## 7. Backup
 
 ```bash
 sudo ./install.sh backup  /root/doorstation-backup.tar.gz
 sudo ./install.sh restore /root/doorstation-backup.tar.gz
 ```
 
-Gesichert werden `/etc/doorstation` (Konfiguration, Geheimnisse) und `/var/lib/doorstation` (SIP-Ziel, HomeKit-Paarung, Tondateien). Die Sicherung ist nur für root lesbar (600). Nach `restore` einmal `sudo ./install.sh` ausführen – erst dann gelten Bridge, baresip-Konto und Paketfilter aus der Sicherung. Eine bestehende Home-Key-Paarung lässt sich auch einzeln übernehmen: `sudo ./install.sh rfid-import <ordner mit hap.state und homekey.json>`.
+The backup contains `/etc/doorstation` (configuration, secrets) and `/var/lib/doorstation` (SIP target, HomeKit pairing, sound files). It is readable by root only (600). After `restore` run `sudo ./install.sh` once – only then do the bridge, baresip account and packet filter from the backup take effect. An existing Home Key pairing can also be taken over on its own: `sudo ./install.sh rfid-import <directory with hap.state and homekey.json>`.
 
-## 8. Überwachung und Fehlersuche
+## 8. Monitoring and troubleshooting
 
 ```bash
 systemctl status 'doorstation-*'
@@ -100,5 +102,5 @@ journalctl -u doorstation-sip -f
 mosquitto_sub -v -t 'doorstation/#'
 ```
 
-- `doorstation/<dienst>/status`: `online`, `degraded` (läuft, kann seine Aufgabe nicht erfüllen) oder `offline`. Wird alle `heartbeat_s` (300 s) wiederholt.
-- `sudo ./install.sh audio-info` zeigt Soundkarten und Reglernamen.
+- `doorstation/<service>/status`: `online`, `degraded` (running, but cannot do its job) or `offline`. Repeated every `heartbeat_s` (300 s).
+- `sudo ./install.sh audio-info` shows sound cards and control names.

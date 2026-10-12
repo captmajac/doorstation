@@ -1,6 +1,6 @@
 [Unit]
-Description=Türstation: Paketfilter (SIP/RTP nur von der FritzBox)
-# Wie nftables.service früh laden, aber danach (dessen "flush ruleset" würde die Tabelle löschen).
+Description=Door station: packet filter (SIP/RTP from the FritzBox only)
+# Load early like nftables.service, but after it (its "flush ruleset" would delete the table).
 DefaultDependencies=no
 Wants=network-pre.target
 After=nftables.service

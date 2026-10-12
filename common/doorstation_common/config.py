@@ -1,4 +1,4 @@
-"""Gemeinsame Konfigurationsbausteine."""
+"""Shared configuration building blocks."""
 
 import re
 from dataclasses import dataclass, fields
@@ -8,10 +8,10 @@ import yaml
 
 
 class ConfigError(Exception):
-    """Ungültige oder fehlende Konfiguration."""
+    """Invalid or missing configuration."""
 
 
-PREFIX_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")  # ein Topic-Abschnitt: ohne / + #
+PREFIX_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")  # a single topic level: no / + #
 
 
 @dataclass(frozen=True)
@@ -19,35 +19,35 @@ class MqttSettings:
     host: str = "localhost"
     port: int = 1883
     prefix: str = "doorstation"
-    heartbeat_s: float = 300  # Status regelmäßig wiederholen (Lebenszeichen); 0 = aus
+    heartbeat_s: float = 300  # repeat status periodically (heartbeat); 0 = off
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "MqttSettings":
         if d is None:
             return cls()
         if not isinstance(d, dict):
-            raise ConfigError("mqtt: muss ein Mapping sein")
+            raise ConfigError("mqtt: must be a mapping")
         allowed = {f.name for f in fields(cls)}
         unknown = sorted(set(d) - allowed)
         if unknown:
-            raise ConfigError(f"mqtt: unbekannte Schlüssel {', '.join(unknown)}")
+            raise ConfigError(f"mqtt: unknown keys {', '.join(unknown)}")
         hb = d.get("heartbeat_s", 300)
         if not isinstance(hb, (int, float)) or isinstance(hb, bool) or hb < 0:
-            raise ConfigError("mqtt: heartbeat_s muss eine Zahl ≥ 0 sein")
+            raise ConfigError("mqtt: heartbeat_s must be a number >= 0")
         host = d.get("host", "localhost")
         if not isinstance(host, str) or not host:
-            raise ConfigError("mqtt: host muss ein Rechnername oder eine Adresse sein")
+            raise ConfigError("mqtt: host must be a host name or address")
         port = d.get("port", 1883)
         if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
-            raise ConfigError("mqtt: port muss eine Zahl 1–65535 sein")
+            raise ConfigError("mqtt: port must be a number 1-65535")
         prefix = d.get("prefix", "doorstation")
         if not isinstance(prefix, str) or not PREFIX_RE.fullmatch(prefix):
-            raise ConfigError("mqtt: prefix darf nur A–Z, a–z, 0–9, _ und - enthalten (ohne / + #)")
+            raise ConfigError("mqtt: prefix may only contain A-Z, a-z, 0-9, _ and - (no / + #)")
         return cls(**d)
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
-    """SafeLoader, der doppelte Schlüssel ablehnt (sonst überschreibt der zweite still den ersten)."""
+    """SafeLoader that rejects duplicate keys (otherwise the second silently overrides the first)."""
 
 
 def _construct_unique_mapping(loader, node, deep=False):
@@ -55,7 +55,7 @@ def _construct_unique_mapping(loader, node, deep=False):
     for key_node, _value in node.value:
         key = loader.construct_object(key_node, deep=deep)
         if key in seen:
-            raise ConfigError(f"Schlüssel '{key}' doppelt (Zeile {key_node.start_mark.line + 1})")
+            raise ConfigError(f"duplicate key '{key}' (line {key_node.start_mark.line + 1})")
         seen.add(key)
     return loader.construct_mapping(node, deep=deep)
 
@@ -67,11 +67,11 @@ def load_yaml(path: Path) -> dict:
     try:
         data = yaml.load(Path(path).read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)  # noqa: S506 (SafeLoader)
     except FileNotFoundError:
-        raise ConfigError(f"Konfiguration nicht gefunden: {path}") from None
+        raise ConfigError(f"configuration not found: {path}") from None
     except ConfigError as exc:
         raise ConfigError(f"{path}: {exc}") from None
     except yaml.YAMLError as exc:
-        raise ConfigError(f"{path}: kein gültiges YAML: {exc}") from None
+        raise ConfigError(f"{path}: invalid YAML: {exc}") from None
     if not isinstance(data, dict):
-        raise ConfigError(f"{path}: oberste Ebene muss ein Mapping sein")
+        raise ConfigError(f"{path}: top level must be a mapping")
     return data

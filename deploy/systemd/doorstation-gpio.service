@@ -1,8 +1,8 @@
 [Unit]
-Description=Türstation: GPIO-Eingänge (Klingel, Bewegung, Briefkasten)
+Description=Door station: GPIO inputs (bell, motion, mailbox)
 Wants=network-online.target
 After=network-online.target mosquitto.service
-# Nie endgültig aufgeben: sonst klingelt nichts mehr.
+# Never give up for good: otherwise the bell stays silent.
 StartLimitIntervalSec=0
 
 [Service]
@@ -10,10 +10,10 @@ User=doorstation
 ExecStart=/opt/doorstation/venv/gpio/bin/doorstation-gpio --config /etc/doorstation/gpio.yaml
 Restart=always
 RestartSec=2
-# Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten (bleibt stehen, Status offline)
+# Exit 2 = configuration error: do not restart every 2 s (stays stopped, status offline)
 RestartPreventExitStatus=2
 
-# Härtung – geprüft mit common/tests/test_systemd_units.py und systemd-analyze security
+# Hardening - checked by common/tests/test_systemd_units.py and systemd-analyze security
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict

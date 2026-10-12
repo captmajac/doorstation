@@ -31,3 +31,9 @@ def test_empty_feedback_sound_disables(tmp_path):
     p = tmp_path / "rfid.yaml"
     p.write_text("feedback_sound:\n")
     assert load_config(p).feedback_sound == ""
+
+
+def test_default_accessory_name(tmp_path):
+    p = tmp_path / "rfid.yaml"
+    p.write_text("mqtt: {}\n")
+    assert load_config(p).accessory_name == "Mailbox NFC Reader"

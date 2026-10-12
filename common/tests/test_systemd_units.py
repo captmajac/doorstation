@@ -1,4 +1,4 @@
-"""Grundregeln der systemd-Units unter deploy/systemd/."""
+"""Basic rules for the systemd units in deploy/systemd/."""
 
 import configparser
 from pathlib import Path
@@ -26,7 +26,7 @@ def test_all_service_units_covered():
 
 @pytest.mark.parametrize("name", SERVICES)
 def test_never_gives_up(name):
-    # Ohne StartLimitIntervalSec=0 gibt systemd nach 5 Starts in 10 s endgültig auf – dann klingelt nichts mehr.
+    # Without StartLimitIntervalSec=0 systemd gives up after 5 starts in 10 s - then the bell stays silent.
     u = _unit(name)
     assert u["Unit"].get("StartLimitIntervalSec") == "0"
     assert u["Service"].get("Restart") == "always"
@@ -34,7 +34,7 @@ def test_never_gives_up(name):
 
 @pytest.mark.parametrize("name", PYTHON)
 def test_config_error_does_not_loop(name):
-    # Exit 2 = Konfigurationsfehler: nicht alle 2 s neu starten, sondern stehen bleiben (status offline).
+    # Exit 2 = configuration error: do not restart every 2 s, stay stopped (status offline).
     assert _unit(name)["Service"].get("RestartPreventExitStatus") == "2"
 
 

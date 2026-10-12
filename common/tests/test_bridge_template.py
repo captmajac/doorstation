@@ -1,7 +1,7 @@
-"""Regeln der Mosquitto-Bridge (deploy/mosquitto/bridge.conf.template).
+"""Rules of the Mosquitto bridge (deploy/mosquitto/bridge.conf.template).
 
-Mosquitto verwendet bei überlappenden Regeln die höchste QoS. Ereignisse, die nach einem
-Ausfall nicht verspätet ankommen dürfen, darf deshalb keine Regel mit QoS 1 erfassen.
+With overlapping rules Mosquitto uses the highest QoS. Events that must not arrive late after
+an outage must therefore not be matched by any QoS 1 rule.
 """
 
 from pathlib import Path
@@ -23,12 +23,12 @@ def _rules() -> list[tuple[str, str, int]]:
 
 
 def _qos(topic: str, directions: tuple[str, ...]) -> int | None:
-    """Höchste QoS aller passenden Regeln, None = Topic wird nicht übertragen."""
+    """Highest QoS of all matching rules, None = topic is not forwarded."""
     matches = [q for p, d, q in _rules() if d in directions and topic_matches_sub(p, topic)]
     return max(matches) if matches else None
 
 
-# Verspätet ausgeliefert könnten sie eine Tür öffnen: nur QoS 0, nie gepuffert.
+# Delivered late they could open a door: QoS 0 only, never buffered.
 @pytest.mark.parametrize("topic", ["doorstation/event/ring", "doorstation/rfid/read", "doorstation/sip/dtmf"])
 def test_time_critical_events_go_out_with_qos0_only(topic):
     assert _qos(topic, ("out", "both")) == 0
@@ -47,8 +47,8 @@ def test_states_go_out_with_qos1(topic):
 
 @pytest.mark.parametrize("topic", ["doorstation/sip/cmd", "doorstation/sound/cmd"])
 def test_commands_come_in_with_qos0_only(topic):
-    # Mit QoS 1 puffert der Server der Hausautomation Befehle während eines Ausfalls und
-    # liefert sie verspätet nach (z. B. eine Ansage Stunden später).
+    # With QoS 1 the home automation's broker buffers commands during an outage and
+    # delivers them late (e.g. an announcement hours later).
     assert _qos(topic, ("in", "both")) == 0
 
 

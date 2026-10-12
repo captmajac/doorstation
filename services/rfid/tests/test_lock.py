@@ -5,7 +5,7 @@ from doorstation_rfid.lock import QuietLock
 
 
 class FakeService:
-    """Die Methoden, die kormax' Lock beim Aufbau als Callbacks einträgt."""
+    """The methods kormax' Lock registers as callbacks during setup."""
 
     def __init__(self):
         self.on_endpoint_authenticated = None
@@ -19,7 +19,7 @@ def lock(tmp_path):
     driver = AccessoryDriver(port=51999, persist_file=str(tmp_path / "hap.state"))
     seen = []
     service = FakeService()
-    lk = QuietLock(driver, "NFC-Leser Test", service=service, on_homekey=seen.append)
+    lk = QuietLock(driver, "NFC Reader Test", service=service, on_homekey=seen.append)
     yield lk, service, seen
     driver.loop.close()
 
