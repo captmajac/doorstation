@@ -7,7 +7,7 @@
 | Komponente | Verwendet | Hinweise |
 |---|---|---|
 | Raspberry Pi | Pi 3 Model B oder Pi 4 | Gleiche Stiftleiste; dieselbe SD-Karte läuft auf beiden. Netzteil Pi 3: 5 V / 2,5 A (Micro-USB), Pi 4: 5 V / 3 A (USB-C). |
-| NFC-Leser | Elechouse NFC Module V3 (PN532) bzw. Nachbau | Betrieb per UART (HSU), VCC an **5 V**. Bei schlechter Home-Key-Erkennung: Elechouse PN532 V4. |
+| NFC-Leser | Elechouse NFC Module V3 (PN532) bzw. Nachbau | Betrieb per UART (HSU), VCC an **5 V** – vorher den Pegel der Datenleitungen prüfen (siehe unten). Bei schlechter Home-Key-Erkennung: Elechouse PN532 V4. |
 | USB-Soundkarte | C-Media USB Audio (z. B. `0d8c:000c`, `0d8c:0014`) | Getrennte 3,5-mm-Buchsen für Lautsprecher und Mikrofon. |
 | Lautsprecher | kleiner Lautsprecher an der Kopfhörerbuchse | Ein Klangvolumen (Gehäuse) hinter dem Lautsprecher verbessert den Klang deutlich. |
 | Mikrofon | Elektret-Mikrofon mit 3,5-mm-Stecker | Abstand zum Lautsprecher so groß wie möglich (weniger Echo). |
@@ -44,15 +44,40 @@ Pin-Nummern sind physische Pins, dazu die BCM-Nummer, die die Konfiguration verw
 
 | PN532 | → | Pi-Pin |
 |---|---|---|
-| VCC | → | Pin 2 (5 V) |
+| VCC | → | Pin 2 (5 V) – **erst nach Prüfung des Pegels, siehe unten** |
 | GND | → | Pin 6 (GND) |
 | TXD | → | Pin 10 (RXD) |
 | RXD | → | Pin 8 (TXD) |
 
 - **DIP-Schalter auf HSU (UART)** – bei V3-Modulen beide auf 0/OFF (Aufdruck auf der Platine).
 - **TX/RX gekreuzt.** Die Beschriftung mancher Nachbauten ist vertauscht: Kommt keine Antwort vom Leser, die beiden Datenleitungen tauschen – das schadet nicht.
-- **VCC an 5 V:** Das V3-Modul hat einen eigenen 3,3-V-Regler (VCC 3,3–5,5 V, TXD/RXD bleiben 3,3 V). An 3,3 V treten nach Lesevorgängen häufig Übertragungsfehler auf. **5 V nur bei Modulen mit Regler.**
+- **VCC an 5 V:** Der 3,3-V-Regler des Pi liefert nicht genug Strom für den PN532; an 3,3 V setzt sich das Modul gelegentlich zurück, und nach Lesevorgängen treten häufig Übertragungsfehler auf. An 5 V läuft es stabil.
+- **Vor dem Anschließen den Pegel prüfen.** Module unterscheiden sich: Je nach Platine laufen die Datenleitungen mit der internen Spannung des Chips (etwa 2,7–3,3 V) oder werden von einem Pegelwandler auf dem Modul auf die Versorgungsspannung angehoben (Handbuch Elechouse V3: „Standard 5V TTL for I2C and UART“). **Die GPIOs des Pi sind nicht 5-V-fest.** Modul allein an 5 V versorgen (nur VCC und GND, TXD/RXD nicht verbunden) und TXD sowie RXD gegen GND messen:
+
+  | Gemessen | Verdrahtung |
+  |---|---|
+  | **höchstens 3,3 V** | VCC an 5 V (Pin 2), TXD/RXD direkt an den Pi – wie in der Tabelle oben |
+  | **über 3,3 V** | VCC an 5 V **mit bidirektionalem Pegelwandler** (BSS138-Modul, siehe unten) – oder VCC an 3,3 V (Pin 1) ohne Pegelwandler, sicher, aber weniger zuverlässig |
+
+- **Leser nur bei ausgeschaltetem Pi an- oder abstecken.**
 - Auf dem Pi: `enable_uart=1`, `dtoverlay=disable-bt`, serielle Konsole aus – erledigt `install.sh`. Der Leser ist dann `/dev/ttyAMA0`.
+
+#### Mit Pegelwandler (BSS138, 4 Kanäle)
+
+Ein übliches Modul mit den Beschriftungen `HV`, `HV1…HV4` (5-V-Seite) und `LV`, `LV1…LV4` (3,3-V-Seite); jeder Kanal verbindet `HVx` mit `LVx`.
+
+| Pegelwandler | → | Angeschlossen an |
+|---|---|---|
+| `LV` | → | Pi Pin 1 (3,3 V) |
+| `GND` (LV-Seite) | → | Pi Pin 6 (GND) |
+| `LV1` | → | Pi Pin 8 (TXD) |
+| `LV2` | → | Pi Pin 10 (RXD) |
+| `HV` | → | Pi Pin 2 (5 V) und PN532 VCC |
+| `GND` (HV-Seite) | → | PN532 GND |
+| `HV1` | → | PN532 RXD |
+| `HV2` | → | PN532 TXD |
+
+Bevor `LV1`/`LV2` an den Pi kommen: alles einschalten und `LV2` gegen GND messen – etwa 3,3 V.
 
 ### Klingeltaster und Reedkontakte
 

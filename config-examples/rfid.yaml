@@ -4,7 +4,7 @@ mqtt:
   port: 1883
   prefix: doorstation
   heartbeat_s: 300          # repeat status every 5 min (heartbeat), 0 = off
-nfc_path: "tty:AMA0:pn532"         # PN532 on the UART (VCC to 5 V, see docs/hardware.md)
+nfc_path: "tty:AMA0:pn532"         # PN532 on the UART (VCC to 5 V; check the TXD level first, see docs/hardware.md)
 accessory_name: "Mailbox NFC Reader"
 express: true                     # iPhone does not need to be unlocked
 finish: silver                    # color of the Wallet card: silver | black | gold | tan

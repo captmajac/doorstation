@@ -7,7 +7,7 @@
 | Component | Used | Notes |
 |---|---|---|
 | Raspberry Pi | Pi 3 Model B or Pi 4 | Same header; the same SD card runs on both. Power supply Pi 3: 5 V / 2.5 A (Micro-USB), Pi 4: 5 V / 3 A (USB-C). |
-| NFC reader | Elechouse NFC Module V3 (PN532) or clone | UART mode (HSU), VCC to **5 V**. If Home Key detection is poor: Elechouse PN532 V4. |
+| NFC reader | Elechouse NFC Module V3 (PN532) or clone | UART mode (HSU), VCC to **5 V** – check the data line level first (see below). If Home Key detection is poor: Elechouse PN532 V4. |
 | USB sound card | C-Media USB Audio (e.g. `0d8c:000c`, `0d8c:0014`) | Separate 3.5 mm jacks for speaker and microphone. |
 | Speaker | small speaker on the headphone jack | An enclosure behind the speaker improves the sound considerably. |
 | Microphone | electret microphone with 3.5 mm plug | Keep it as far from the speaker as possible (less echo). |
@@ -44,15 +44,40 @@ Pin numbers are physical pins, plus the BCM number used by the configuration. **
 
 | PN532 | → | Pi pin |
 |---|---|---|
-| VCC | → | pin 2 (5 V) |
+| VCC | → | pin 2 (5 V) – **only after checking the level, see below** |
 | GND | → | pin 6 (GND) |
 | TXD | → | pin 10 (RXD) |
 | RXD | → | pin 8 (TXD) |
 
 - **DIP switches to HSU (UART)** – on V3 modules both to 0/OFF (printed on the board).
 - **TX/RX crossed.** Some clones have the labels swapped: if the reader does not answer, swap the two data lines – it does no harm.
-- **VCC to 5 V:** the V3 module has its own 3.3 V regulator (VCC 3.3–5.5 V, TXD/RXD stay at 3.3 V). At 3.3 V, transmission errors after reads are common. **5 V only for modules with a regulator.**
+- **VCC to 5 V:** the Pi's 3.3 V regulator cannot supply enough current for the PN532; at 3.3 V the module resets now and then and transmission errors after reads are frequent. At 5 V it runs stably.
+- **Check the level before connecting.** Modules differ: depending on the board, the data lines run at the chip's internal voltage (approx. 2.7–3.3 V) or are raised to the supply voltage by an on-board level shifter (the Elechouse V3 manual says "Standard 5V TTL for I2C and UART"). **The Pi's GPIOs are not 5 V tolerant.** Power the module on its own from 5 V (VCC and GND only, TXD/RXD not connected) and measure TXD and RXD against GND:
+
+  | Measured | Wiring |
+  |---|---|
+  | **at most 3.3 V** | VCC to 5 V (pin 2), TXD/RXD directly to the Pi – as in the table above |
+  | **above 3.3 V** | VCC to 5 V **with a bidirectional level shifter** (BSS138 module, see below) – or VCC to 3.3 V (pin 1) without a level shifter, which is safe but less reliable |
+
+- **Connect and disconnect the reader only with the Pi switched off.**
 - On the Pi: `enable_uart=1`, `dtoverlay=disable-bt`, serial console off – `install.sh` does this. The reader is then `/dev/ttyAMA0`.
+
+#### With a level shifter (BSS138, 4 channels)
+
+A common module with the labels `HV`, `HV1…HV4` (5 V side) and `LV`, `LV1…LV4` (3.3 V side); each channel connects `HVx` with `LVx`.
+
+| Level shifter | → | Connected to |
+|---|---|---|
+| `LV` | → | Pi pin 1 (3.3 V) |
+| `GND` (LV side) | → | Pi pin 6 (GND) |
+| `LV1` | → | Pi pin 8 (TXD) |
+| `LV2` | → | Pi pin 10 (RXD) |
+| `HV` | → | Pi pin 2 (5 V) and PN532 VCC |
+| `GND` (HV side) | → | PN532 GND |
+| `HV1` | → | PN532 RXD |
+| `HV2` | → | PN532 TXD |
+
+Before connecting `LV1`/`LV2` to the Pi: power everything up and measure `LV2` against GND – approx. 3.3 V.
 
 ### Bell button and reed contacts
 
