@@ -19,12 +19,14 @@ log = logging.getLogger(__name__)
 BARESIP = "/baresip"
 _REGINFO_OK = re.compile(r"\bOK\b")
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
+RESTART_MIN_INTERVAL_S = 300  # ask for a baresip restart at most every 5 min
 
 
 class SipService:
     def __init__(self, cfg: SipConfig, mqtt: ServiceMqtt, store: TargetStore,
                  clock: Callable[[], float] = time.monotonic,
-                 wall: Callable[[], float] = time.time) -> None:
+                 wall: Callable[[], float] = time.time,
+                 request_baresip_restart: Callable[[], None] = lambda: None) -> None:
         self.cfg = cfg
         self.mqtt = mqtt
         self.store = store
@@ -39,6 +41,8 @@ class SipService:
         self._next_health = clock()  # first query immediately: learn the registration after an adapter restart
         self._last_call = CallState("idle")
         self._registration = "unknown"
+        self._request_restart = request_baresip_restart
+        self._last_restart_request: float | None = None
 
     # --- start and reconnect --------------------------------------------
     def start(self) -> None:
@@ -176,7 +180,21 @@ class SipService:
                 self._set_status("degraded")
                 self._set_registration("unknown")  # without a response the registration state is unknown
                 self._apply(self.machine.reset())
+            if self._misses >= 2:
+                self._maybe_restart_baresip()
         self._pending_health = self._send("reginfo")
+
+    def _maybe_restart_baresip(self) -> None:
+        """baresip does not reconnect to MQTT after losing it (e.g. clock jump after boot): restart it."""
+        now = self._clock()
+        if self._last_restart_request is not None and now - self._last_restart_request < RESTART_MIN_INTERVAL_S:
+            return
+        self._last_restart_request = now
+        log.warning("baresip not responding - requesting a restart")
+        try:
+            self._request_restart()
+        except OSError as exc:
+            log.error("cannot request a baresip restart: %s", exc)
 
     # --- commands from the home automation -----------------------------
     def _command(self, d: dict) -> None:

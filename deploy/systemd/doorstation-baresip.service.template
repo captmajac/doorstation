@@ -9,10 +9,14 @@ StartLimitIntervalSec=0
 [Service]
 User=doorstation
 Environment=XDG_RUNTIME_DIR=/run/user/@UID@
+# No real-time clock: wait (max. 60 s) for the time sync - a later clock jump breaks baresip's MQTT link.
+ExecStartPre=/opt/doorstation/venv/sip/bin/doorstation-wait-timesync --timeout 60
 ExecStartPre=/opt/doorstation/venv/sip/bin/doorstation-audio-init
 ExecStart=/usr/bin/baresip -f /var/lib/doorstation/baresip
 Restart=always
 RestartSec=2
+# Covers all ExecStartPre waits (time sync 60 s, sound card 15 s, PipeWire 15 s) with margin.
+TimeoutStartSec=150
 
 # Hardening - checked by common/tests/test_systemd_units.py and systemd-analyze security
 NoNewPrivileges=yes

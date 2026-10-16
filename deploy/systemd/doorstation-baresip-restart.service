@@ -1,0 +1,7 @@
+[Unit]
+Description=Door station: restart baresip (requested by the SIP adapter)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/rm -f /var/lib/doorstation/sip/restart-baresip
+ExecStart=/bin/systemctl restart --no-block doorstation-baresip.service

@@ -1,0 +1,11 @@
+[Unit]
+Description=Door station: restart baresip on request of the SIP adapter
+# The hardened SIP adapter cannot restart system units. If baresip stops responding (e.g. it lost
+# its MQTT connection after a clock jump), the adapter creates this file.
+
+[Path]
+PathExists=/var/lib/doorstation/sip/restart-baresip
+Unit=doorstation-baresip-restart.service
+
+[Install]
+WantedBy=multi-user.target

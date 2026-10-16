@@ -325,6 +325,15 @@ install_sip() {
   fi
   rm -f "$tmp"
   install_unit doorstation-sip && restart_sip=1
+  # Restart baresip on request of the SIP adapter (it stops answering after a clock jump).
+  install_unit doorstation-baresip-restart || true
+  local path_unit=/etc/systemd/system/doorstation-baresip-restart.path path_changed=0
+  copy_if_changed "$SRC/deploy/systemd/doorstation-baresip-restart.path" "$path_unit" && path_changed=1
+  [ "$path_changed" -eq 0 ] || systemctl daemon-reload
+  systemctl enable --quiet doorstation-baresip-restart.path
+  if [ "$path_changed" -eq 1 ] || ! systemctl is-active --quiet doorstation-baresip-restart.path; then
+    systemctl restart doorstation-baresip-restart.path
+  fi
   systemctl enable --quiet doorstation-baresip doorstation-sip
   if [ "$restart_baresip" -eq 1 ] || ! systemctl is-active --quiet doorstation-baresip; then
     log "(Re)starting doorstation-baresip"; systemctl restart doorstation-baresip

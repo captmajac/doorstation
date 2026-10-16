@@ -11,6 +11,7 @@ dependencies = ["doorstation-common"]
 [project.scripts]
 doorstation-sip = "doorstation_sip.__main__:main"
 doorstation-audio-init = "doorstation_sip.audio:main"
+doorstation-wait-timesync = "doorstation_sip.timesync:main"
 
 [tool.setuptools]
 packages = ["doorstation_sip"]

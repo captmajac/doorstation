@@ -34,7 +34,10 @@ def main(argv: list[str] | None = None) -> int:
 
     mqtt = ServiceMqtt("sip", cfg.mqtt)
     store = TargetStore(cfg.state_dir / "target.json", cfg.default_target)
-    service = SipService(cfg, mqtt, store)
+    # A root path unit (doorstation-baresip-restart.path) restarts baresip when this file appears;
+    # the hardened adapter cannot restart system units itself.
+    restart_flag = cfg.state_dir / "restart-baresip"
+    service = SipService(cfg, mqtt, store, request_baresip_restart=restart_flag.touch)
     service.start()
     mqtt.start()
     log.info("started, target %s", service.target or "muted")

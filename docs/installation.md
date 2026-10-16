@@ -29,7 +29,7 @@ sudo ./install.sh
 - loads the packet filter `doorstation-firewall`: SIP/RTP from the FritzBox only (other ports untouched),
 - enables the UART for the PN532, disables Bluetooth and the serial console, disables the onboard audio outputs,
 - creates missing configurations in `/etc/doorstation/` from `config-examples/` (**existing ones are never overwritten**),
-- installs and starts the systemd units `doorstation-firewall`, `-gpio`, `-baresip`, `-sip`, `-sound`, `-rfid`.
+- installs and starts the systemd units `doorstation-firewall`, `-gpio`, `-baresip`, `-sip`, `-sound`, `-rfid` and `doorstation-baresip-restart.path`.
 
 If it says "please reboot", run `sudo reboot` once. On the first run the SIP password is still missing: SIP is then skipped with a warning and everything else is set up – run `install.sh` again after section 4. Warnings are repeated in a summary at the end.
 

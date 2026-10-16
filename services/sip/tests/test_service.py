@@ -23,7 +23,7 @@ class Clock:
         return self.t
 
 
-def setup(tmp_path, target="**610", registered=True):
+def setup(tmp_path, target="**610", registered=True, restarts=None):
     c = FakeMqttClient()
     m = ServiceMqtt("sip", MqttSettings(), client=c)
     m.start()
@@ -31,7 +31,8 @@ def setup(tmp_path, target="**610", registered=True):
     store = TargetStore(tmp_path / "target.json", "**701")
     store.save(target)
     clock = Clock()
-    s = SipService(CFG, m, store, clock=clock, wall=lambda: NOW.timestamp())
+    request = (lambda: restarts.append(clock.t)) if restarts is not None else (lambda: None)
+    s = SipService(CFG, m, store, clock=clock, wall=lambda: NOW.timestamp(), request_baresip_restart=request)
     s.start()
     if registered:
         ev(c, "REGISTER_OK")
@@ -281,3 +282,44 @@ def test_registration_unknown_when_baresip_silent(tmp_path):
         clock.t += 30
         s.step(0)
     assert msgs(c, "doorstation/sip/registration")[-1]["state"] == "unknown"
+
+
+def test_silent_baresip_gets_restarted(tmp_path):
+    # baresip loses its MQTT connection after a clock jump and never reconnects: restart it.
+    restarts = []
+    c, s, clock = setup(tmp_path, restarts=restarts)
+    for _ in range(3):
+        clock.t += 30
+        s.step(0)
+    assert len(restarts) == 1
+
+
+def test_baresip_restart_rate_limited(tmp_path):
+    restarts = []
+    c, s, clock = setup(tmp_path, restarts=restarts)
+    for _ in range(9):          # silent for 4.5 min: one restart request only
+        clock.t += 30
+        s.step(0)
+    assert len(restarts) == 1
+    for _ in range(6):          # still silent after 5 min: ask again
+        clock.t += 30
+        s.step(0)
+    assert len(restarts) == 2
+
+
+def test_responding_baresip_is_not_restarted(tmp_path):
+    restarts = []
+    c, s, clock = setup(tmp_path, restarts=restarts)
+    for _ in range(4):
+        token = first_reginfo_token_after(c, s)
+        c.simulate_message(f"/baresip/command_resp/{token}", REGINFO_OK % token.encode())
+        clock.t += 30
+        s.step(0)
+    assert restarts == []
+
+
+def first_reginfo_token_after(c, s):
+    for t, p, *_ in reversed(c.published):
+        if t.startswith("/baresip/command/") and json.loads(p)["command"] == "reginfo":
+            return json.loads(p)["token"]
+    return None

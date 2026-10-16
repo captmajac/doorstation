@@ -72,7 +72,8 @@ idle ──Klingel/call──→ calling ──abgenommen──→ active ──
 - Eingehende Anrufe, die nicht über die FritzBox kommen, werden sofort beendet. Zusätzlich lässt der Paketfilter `doorstation-firewall` SIP (5060/5061, UDP und TCP) und RTP (`rtp_ports` 10000–10099) nur von der FritzBox-Adresse aus `sip.yaml` durch – direkte Anrufe aus dem LAN erreichen baresip gar nicht.
 - DTMF-Tasten werden nur während eines eigenen Gesprächs (`active`) gemeldet.
 - Beim Start des Adapters wird ein noch laufendes, unbekanntes Gespräch beendet; die Anmeldung an der FritzBox wird sofort per `reginfo` abgefragt.
-- Antwortet baresip zweimal nicht, wird `status` `degraded`, `registration` `unknown` und ein laufender Anruf beendet.
+- Antwortet baresip zweimal nicht, wird `status` `degraded`, `registration` `unknown` und ein laufender Anruf beendet. Der Adapter lässt baresip dann neu starten (höchstens alle 5 min, über `doorstation-baresip-restart.path`).
+- Der Pi hat keine Echtzeituhr: Nach einem Stromausfall startet er mit einer alten Uhrzeit und springt vor, sobald die Zeitsynchronisation antwortet. baresip verliert bei so einem Sprung seine MQTT-Verbindung und baut sie nicht selbst wieder auf. Deshalb startet baresip erst nach der Zeitsynchronisation (`doorstation-wait-timesync`, höchstens 60 s – ohne Internet startet er trotzdem), und der Neustart oben fängt spätere Sprünge ab.
 - Das SIP-Passwort darf kein `;`, `>`, `"` und keine Leerzeichen enthalten (die baresip-Kontozeile würde zerlegt); `install.sh` überspringt SIP dann mit einer Warnung.
 
 ## Audio

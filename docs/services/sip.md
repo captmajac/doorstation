@@ -72,7 +72,8 @@ idle ──bell/call──→ calling ──answered──→ active ──hung 
 - Incoming calls that do not come via the FritzBox are ended immediately. In addition, the packet filter `doorstation-firewall` only lets SIP (5060/5061, UDP and TCP) and RTP (`rtp_ports` 10000–10099) through from the FritzBox address in `sip.yaml` – direct calls from the LAN never reach baresip.
 - DTMF keys are only reported during our own call (`active`).
 - When the adapter starts, a still running unknown call is ended; the registration at the FritzBox is queried right away via `reginfo`.
-- If baresip does not respond twice, `status` becomes `degraded`, `registration` `unknown`, and a running call is ended.
+- If baresip does not respond twice, `status` becomes `degraded`, `registration` `unknown`, and a running call is ended. The adapter then has baresip restarted (at most every 5 min, via `doorstation-baresip-restart.path`).
+- The Pi has no real-time clock: after a power failure it starts with an old time and jumps forward when the time sync answers. baresip loses its MQTT connection on such a jump and does not reconnect by itself. Therefore baresip starts only after the time sync (`doorstation-wait-timesync`, at most 60 s – without internet it starts anyway), and the restart above covers later jumps.
 - The SIP password must not contain `;`, `>`, `"` or spaces (the baresip account line would break); `install.sh` then skips SIP with a warning.
 
 ## Audio
