@@ -29,6 +29,7 @@ max_call_s: 120              # Höchstdauer jedes Gesprächs
 cooldown_s: 5                # Sperrzeit nach Gesprächsende
 healthcheck_s: 30            # Abfrageintervall baresip
 command_max_age_s: 30        # ältere call-Befehle (ts) werden verworfen
+# time_server: 192.168.178.1 # optional: Zeitserver des Pi; Vorgabe: fritzbox, null = Systemvorgabe
 ```
 
 Das per `set_target` gesetzte Ziel wird in `/var/lib/doorstation/sip/target.json` gespeichert und gilt über Neustarts hinweg; `default_target` ist nur der Startwert.
@@ -73,7 +74,7 @@ idle ──Klingel/call──→ calling ──abgenommen──→ active ──
 - DTMF-Tasten werden nur während eines eigenen Gesprächs (`active`) gemeldet.
 - Beim Start des Adapters wird ein noch laufendes, unbekanntes Gespräch beendet; die Anmeldung an der FritzBox wird sofort per `reginfo` abgefragt.
 - Antwortet baresip zweimal nicht, wird `status` `degraded`, `registration` `unknown` und ein laufender Anruf beendet. Der Adapter lässt baresip dann neu starten (höchstens alle 5 min, über `doorstation-baresip-restart.path`).
-- Der Pi hat keine Echtzeituhr: Nach einem Stromausfall startet er mit einer alten Uhrzeit und springt vor, sobald die Zeitsynchronisation antwortet. baresip verliert bei so einem Sprung seine MQTT-Verbindung und baut sie nicht selbst wieder auf. Deshalb startet baresip erst nach der Zeitsynchronisation (`doorstation-wait-timesync`, höchstens 60 s – ohne Internet startet er trotzdem), und der Neustart oben fängt spätere Sprünge ab.
+- Der Pi hat keine Echtzeituhr: Nach einem Stromausfall startet er mit einer alten Uhrzeit und springt vor, sobald die Zeitsynchronisation antwortet. baresip verliert bei so einem Sprung seine MQTT-Verbindung und baut sie nicht selbst wieder auf. `install.sh` trägt die FritzBox als Zeitserver ein, damit stimmt die Uhr meist nach wenigen Sekunden. Trotzdem startet baresip erst nach der Zeitsynchronisation (`doorstation-wait-timesync`, höchstens 60 s – ohne Internet startet er trotzdem), und der Neustart oben fängt spätere Sprünge ab.
 - Das SIP-Passwort darf kein `;`, `>`, `"` und keine Leerzeichen enthalten (die baresip-Kontozeile würde zerlegt); `install.sh` überspringt SIP dann mit einer Warnung.
 
 ## Audio
@@ -93,5 +94,7 @@ mic_playback: false          # Mikrofon nie direkt auf den Lautsprecher
 echo_cancel:
   enabled: true              # false: Ein-/Ausgabe direkt auf die Karte
 ```
+
+Es gelten nur diese Werte: WirePlumber ist so eingestellt, dass er keine gespeicherten Lautstärken darüberlegt (`deploy/wireplumber/51-doorstation-volumes.conf`).
 
 Ein anderer USB-Stick braucht nur angepasste Reglernamen. Klang abstimmen: Pegel, `auto_gain_control` und Lautsprecher-/Mikrofonposition variieren, `sudo systemctl restart doorstation-baresip`.

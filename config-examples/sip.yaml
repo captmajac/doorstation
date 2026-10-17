@@ -13,3 +13,4 @@ max_call_s: 120                # maximum duration of every call
 cooldown_s: 5                  # cooldown after a call
 healthcheck_s: 30              # baresip polling interval
 command_max_age_s: 30          # older call commands (ts) are dropped
+# time_server: 192.168.178.1   # time server for the Pi (install.sh); default: fritzbox, null = system default

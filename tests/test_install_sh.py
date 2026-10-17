@@ -136,3 +136,77 @@ install_sip; echo "rc=$?"''', tmp_path)
     assert "rc=0" in r.stdout
     assert "CALLED-PIP" not in r.stdout
     assert "WARNING" in r.stderr and "character" in r.stderr
+
+
+# --- time server ----------------------------------------------------------------
+
+def _timesync(tmp_path, server):
+    return bash(f'''
+systemctl() {{ echo "systemctl $*"; }}
+install_timesync "{server}"; echo "rc=$?"''', tmp_path, DOORSTATION_TIMESYNC_DIR=str(tmp_path / "timesyncd.conf.d"))
+
+
+def test_timesync_uses_fritzbox_with_internet_fallback(tmp_path):
+    # No real-time clock: after a power failure the FritzBox answers at once, the internet pool may take minutes.
+    r = _timesync(tmp_path, "192.168.178.1")
+    conf = (tmp_path / "timesyncd.conf.d" / "doorstation.conf").read_text()
+    assert "rc=0" in r.stdout
+    assert "[Time]\nNTP=192.168.178.1\n" in conf
+    assert "FallbackNTP=0.debian.pool.ntp.org" in conf
+    assert "systemctl restart systemd-timesyncd" in r.stdout
+
+
+def test_timesync_unchanged_does_not_restart(tmp_path):
+    _timesync(tmp_path, "192.168.178.1")
+    r = _timesync(tmp_path, "192.168.178.1")
+    assert "rc=0" in r.stdout and "systemctl restart" not in r.stdout
+
+
+def test_timesync_rejects_invalid_server(tmp_path):
+    r = _timesync(tmp_path, "evil\\nNTP=attacker")
+    assert "rc=0" in r.stdout and "WARNING" in r.stderr
+    assert not (tmp_path / "timesyncd.conf.d" / "doorstation.conf").exists()
+
+
+def test_timesync_disabled_removes_our_config(tmp_path):
+    _timesync(tmp_path, "192.168.178.1")
+    r = _timesync(tmp_path, "")
+    assert "rc=0" in r.stdout and "systemctl restart systemd-timesyncd" in r.stdout
+    assert not (tmp_path / "timesyncd.conf.d" / "doorstation.conf").exists()
+
+
+def _time_server(tmp_path, sip_yaml: str):
+    (tmp_path / "sip.yaml").write_text(sip_yaml)
+    r = bash(f'echo "server=[$(time_server_from_config "{tmp_path}/sip.yaml" 192.168.178.1)]"', tmp_path)
+    return r.stdout.strip()
+
+
+def test_time_server_defaults_to_fritzbox(tmp_path):
+    assert _time_server(tmp_path, "fritzbox: 192.168.178.1\n") == "server=[192.168.178.1]"
+
+
+def test_time_server_can_be_overridden(tmp_path):
+    assert _time_server(tmp_path, "fritzbox: 192.168.178.1\ntime_server: ntp.example.org   # own\n") \
+        == "server=[ntp.example.org]"
+
+
+def test_time_server_null_keeps_system_default(tmp_path):
+    assert _time_server(tmp_path, "fritzbox: 192.168.178.1\ntime_server: null\n") == "server=[]"
+
+
+# --- PipeWire / WirePlumber configuration ----------------------------------------
+
+def test_audio_conf_installed_once(tmp_path):
+    src = tmp_path / "51-test.conf"
+    src.write_text("x = 1\n")
+    dest = tmp_path / "var" / ".config" / "wireplumber" / "wireplumber.conf.d"
+    script = f'SVC_USER="$(id -un)"; install_audio_conf "{src}" "{dest}"; echo "rc=$?"'
+    assert "rc=0" in bash(script, tmp_path).stdout
+    assert (dest / "51-test.conf").read_text() == "x = 1\n"
+    assert "rc=1" in bash(script, tmp_path).stdout   # unchanged: no restart needed
+
+
+def test_wireplumber_does_not_restore_volumes():
+    # WirePlumber laid stored route volumes (~40 % speaker) over the levels of doorstation-audio-init.
+    conf = (TEMPLATE_DIR / "deploy" / "wireplumber" / "51-doorstation-volumes.conf").read_text()
+    assert "device.restore-routes = false" in conf

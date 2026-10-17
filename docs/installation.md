@@ -27,6 +27,7 @@ sudo ./install.sh
 - creates the system user `doorstation`, the directories and one venv per service,
 - sets up the local Mosquitto (`127.0.0.1` only) and – if configured – the bridge,
 - loads the packet filter `doorstation-firewall`: SIP/RTP from the FritzBox only (other ports untouched),
+- uses the FritzBox from `sip.yaml` as time server (the Debian pool stays as fallback; another server via `time_server`, `null` keeps the system default) – the Pi has no real-time clock, and the FritzBox answers at once after a power failure,
 - enables the UART for the PN532, disables Bluetooth and the serial console, disables the onboard audio outputs,
 - creates missing configurations in `/etc/doorstation/` from `config-examples/` (**existing ones are never overwritten**),
 - installs and starts the systemd units `doorstation-firewall`, `-gpio`, `-baresip`, `-sip`, `-sound`, `-rfid` and `doorstation-baresip-restart.path`.

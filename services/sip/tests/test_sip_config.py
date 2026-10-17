@@ -37,3 +37,22 @@ def test_default_target_null_means_mute(tmp_path):
 def test_valid_target():
     assert valid_target("**701") and valid_target("0301234#")
     assert not valid_target("12a") and not valid_target("") and not valid_target(None) and not valid_target("1" * 21)
+
+
+def _cfg(tmp_path, extra):
+    p = tmp_path / "sip.yaml"
+    p.write_text("fritzbox: 192.168.178.1\nusername: Tuerstation\n" + extra)
+    return load_config(p)
+
+
+@pytest.mark.parametrize("value, expected", [
+    ("", None), ("time_server: ntp.example.org\n", "ntp.example.org"), ("time_server: null\n", None),
+])
+def test_time_server_option(tmp_path, value, expected):
+    # Read by install.sh (time server for the Pi); the SIP adapter only validates it.
+    assert _cfg(tmp_path, value).time_server == expected
+
+
+def test_time_server_invalid(tmp_path):
+    with pytest.raises(ConfigError, match="time_server"):
+        _cfg(tmp_path, "time_server: 'evil; rm'\n")

@@ -8,6 +8,7 @@ from doorstation_common.config import ConfigError, MqttSettings, load_yaml
 
 TARGET_RE = re.compile(r"^[0-9*#]{1,20}$")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+TIME_SERVER_RE = re.compile(r"^[A-Za-z0-9.:-]{1,253}$")
 
 
 def valid_target(t: object) -> bool:
@@ -26,10 +27,11 @@ class SipConfig:
     healthcheck_s: float = 30
     command_max_age_s: float = 30
     state_dir: Path = Path("/var/lib/doorstation/sip")
+    time_server: str | None = None  # read by install.sh: None = FritzBox (if not set) or system default (null)
 
 
 _NUMBERS = ("ring_timeout_s", "max_call_s", "cooldown_s", "healthcheck_s", "command_max_age_s")
-_KEYS = {"mqtt", "fritzbox", "username", "default_target", "state_dir", *_NUMBERS}
+_KEYS = {"mqtt", "fritzbox", "username", "default_target", "state_dir", "time_server", *_NUMBERS}
 
 
 def load_config(path: Path) -> SipConfig:
@@ -54,6 +56,11 @@ def load_config(path: Path) -> SipConfig:
             if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
                 raise ConfigError(f"{path}: {key} must be a number > 0")
             kwargs[key] = float(v)
+    if data.get("time_server") is not None:
+        t = data["time_server"]
+        if not isinstance(t, str) or not TIME_SERVER_RE.fullmatch(t):
+            raise ConfigError(f"{path}: time_server must be a host name or IP address, or null")
+        kwargs["time_server"] = t
     if "state_dir" in data:
         kwargs["state_dir"] = Path(str(data["state_dir"]))
     return SipConfig(

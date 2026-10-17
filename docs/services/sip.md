@@ -29,6 +29,7 @@ max_call_s: 120              # maximum duration of every call
 cooldown_s: 5                # cooldown after a call
 healthcheck_s: 30            # baresip polling interval
 command_max_age_s: 30        # older call commands (ts) are dropped
+# time_server: 192.168.178.1 # optional: time server for the Pi; default: fritzbox, null = system default
 ```
 
 The target set via `set_target` is stored in `/var/lib/doorstation/sip/target.json` and survives restarts; `default_target` is only the initial value.
@@ -73,7 +74,7 @@ idle ──bell/call──→ calling ──answered──→ active ──hung 
 - DTMF keys are only reported during our own call (`active`).
 - When the adapter starts, a still running unknown call is ended; the registration at the FritzBox is queried right away via `reginfo`.
 - If baresip does not respond twice, `status` becomes `degraded`, `registration` `unknown`, and a running call is ended. The adapter then has baresip restarted (at most every 5 min, via `doorstation-baresip-restart.path`).
-- The Pi has no real-time clock: after a power failure it starts with an old time and jumps forward when the time sync answers. baresip loses its MQTT connection on such a jump and does not reconnect by itself. Therefore baresip starts only after the time sync (`doorstation-wait-timesync`, at most 60 s – without internet it starts anyway), and the restart above covers later jumps.
+- The Pi has no real-time clock: after a power failure it starts with an old time and jumps forward when the time sync answers. baresip loses its MQTT connection on such a jump and does not reconnect by itself. `install.sh` sets the FritzBox as time server, so the clock is usually right within seconds. Still, baresip starts only after the time sync (`doorstation-wait-timesync`, at most 60 s – without internet it starts anyway), and the restart above covers later jumps.
 - The SIP password must not contain `;`, `>`, `"` or spaces (the baresip account line would break); `install.sh` then skips SIP with a warning.
 
 ## Audio
@@ -93,5 +94,7 @@ mic_playback: false          # never route the microphone straight to the speake
 echo_cancel:
   enabled: true              # false: input/output directly on the card
 ```
+
+Only these values count: WirePlumber is configured not to restore stored volumes over them (`deploy/wireplumber/51-doorstation-volumes.conf`).
 
 Another USB stick only needs adjusted control names. Tuning the sound: vary levels, `auto_gain_control` and the speaker/microphone position, then `sudo systemctl restart doorstation-baresip`.
