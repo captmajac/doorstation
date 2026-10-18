@@ -206,7 +206,40 @@ def test_audio_conf_installed_once(tmp_path):
     assert "rc=1" in bash(script, tmp_path).stdout   # unchanged: no restart needed
 
 
-def test_wireplumber_does_not_restore_volumes():
-    # WirePlumber laid stored route volumes (~40 % speaker) over the levels of doorstation-audio-init.
-    conf = (TEMPLATE_DIR / "deploy" / "wireplumber" / "51-doorstation-volumes.conf").read_text()
-    assert "device.restore-routes = false" in conf
+PIPEWIRE_UNITS = ("pipewire.service", "pipewire.socket", "pipewire-pulse.service", "pipewire-pulse.socket",
+                  "wireplumber.service", "filter-chain.service")
+
+
+def _pipewire_only(tmp_path):
+    units = tmp_path / "user-units"
+    r = bash('SVC_USER=doorstation; install_pipewire_service_user_only; echo "rc=$?"', tmp_path,
+             DOORSTATION_USER_UNIT_DIR=str(units))
+    return r, units
+
+
+def test_pipewire_runs_only_for_the_service_user(tmp_path):
+    # A login session (e.g. SSH) started its own PipeWire, took over the sound card and set
+    # the speaker to WirePlumber's default of 40 %.
+    r, units = _pipewire_only(tmp_path)
+    assert "rc=0" in r.stdout
+    for unit in PIPEWIRE_UNITS:
+        conf = (units / f"{unit}.d" / "doorstation.conf").read_text()
+        assert "[Unit]\nConditionUser=doorstation\n" in conf, unit
+
+
+def test_pipewire_service_user_only_unchanged_second_time(tmp_path):
+    _pipewire_only(tmp_path)
+    r, _ = _pipewire_only(tmp_path)
+    assert "rc=1" in r.stdout
+
+
+def test_wireplumber_keeps_restoring_volumes(tmp_path):
+    # "device.restore-routes = false" made WirePlumber set its defaults (40 % speaker) on every
+    # restart - restoring keeps the levels doorstation-audio-init set last.
+    assert not (TEMPLATE_DIR / "deploy" / "wireplumber" / "51-doorstation-volumes.conf").exists()
+    old = tmp_path / "var" / ".config" / "wireplumber" / "wireplumber.conf.d" / "51-doorstation-volumes.conf"
+    old.parent.mkdir(parents=True)
+    old.write_text("wireplumber.settings = { device.restore-routes = false }\n")
+    script = f'remove_audio_conf "{old}"; echo "rc=$?"; remove_audio_conf "{old}"; echo "rc=$?"'
+    assert bash(script, tmp_path).stdout.split() == ["rc=0", "rc=1"]
+    assert not old.exists()

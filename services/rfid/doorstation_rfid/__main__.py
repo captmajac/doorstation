@@ -59,21 +59,15 @@ class PairingWatch:
         self._pincode = pincode
         self._state_dir = state_dir
         self._paired: bool | None = None
-        self._republish_due = threading.Event()
-
-    def republish(self) -> None:
-        """From paho's thread: only flag it, check() reports."""
-        self._republish_due.set()
 
     def check(self) -> None:
         try:
             now = self._is_paired()
-            if now != self._paired or self._republish_due.is_set():
-                self._republish_due.clear()
-                changed = now != self._paired
+            # Sent only if it differs from the broker's retained state (see publish_state).
+            self._mqtt.publish_state("pairing", {"paired": now})
+            if now != self._paired:
                 self._paired = now
-                self._mqtt.publish_json("pairing", {"paired": now}, retain=True)
-                if changed and not now:
+                if not now:
                     log.warning("reader not paired - setup code for the Home app: %s", self._pincode())
             secure_state_files(self._state_dir)
         except Exception:
@@ -118,7 +112,6 @@ def main(argv: list[str] | None = None) -> int:
     stop = threading.Event()
 
     pairing = PairingWatch(mqtt, lambda: loop.paired, lambda: driver.state.pincode.decode(), cfg.state_dir)
-    mqtt.on_connected(pairing.republish)
 
     def watch() -> None:
         while not stop.is_set():

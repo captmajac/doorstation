@@ -25,7 +25,7 @@ Speaker/mic     ←→│ sound ──┘   Audio: PipeWire + WebRTC echo cancel
 
 - Prefix of all topics: `doorstation/` (configurable).
 - MQTT 3.1.1. Payloads are JSON (UTF-8) with `ts` (ISO 8601 with time zone and milliseconds, e.g. `2026-10-11T17:29:27.072+02:00`).
-- **States** are retained (QoS 1) – after a restart the home automation knows the current state right away.
+- **States** are retained (QoS 1) – after a restart the home automation knows the current state right away. A state is only sent when its content changes: after a service restart or reconnect it is compared with the broker's retained message, and an unchanged state keeps its message and `ts`.
 - **Events** are not retained.
 - **Commands** go to `doorstation/<service>/cmd`. Invalid commands → `doorstation/<service>/error` `{"ts","message"}`.
 - **Status** `doorstation/<service>/status`: plain text `online` | `degraded` | `offline`, retained. The broker sets `offline` via last will. The status is repeated from the main loop every `heartbeat_s` (default 300 s) – if the repetition stops, the service hangs.

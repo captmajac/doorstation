@@ -39,7 +39,7 @@ def _watch(tmp_path, paired):
     from doorstation_common.testing import FakeMqttClient
     from doorstation_rfid.__main__ import PairingWatch
     c = FakeMqttClient()
-    m = ServiceMqtt("rfid", MqttSettings(), client=c)
+    m = ServiceMqtt("rfid", MqttSettings(), client=c, state_settle_s=0)
     m.start()
     c.simulate_connect()
     return c, PairingWatch(m, paired, lambda: "123-45-678", tmp_path)
@@ -59,15 +59,30 @@ def test_pairing_watch_survives_errors(tmp_path):
     w.check()
 
 
-def test_pairing_reported_on_change_and_after_reconnect(tmp_path):
+def test_pairing_reported_on_change_only(tmp_path):
     state = {"paired": True}
     c, w = _watch(tmp_path, lambda: state["paired"])
     w.check()
     w.check()
     assert _pairing(c) == [True]
-    w.republish()          # e.g. after reconnecting to the broker
-    w.check()
-    assert _pairing(c) == [True, True]
     state["paired"] = False
     w.check()
-    assert _pairing(c) == [True, True, False]
+    assert _pairing(c) == [True, False]
+
+
+def test_pairing_unchanged_against_broker_not_sent_after_restart(tmp_path):
+    from doorstation_common.config import MqttSettings
+    from doorstation_common.mqtt import ServiceMqtt
+    from doorstation_common.testing import FakeMqttClient
+    from doorstation_rfid.__main__ import PairingWatch
+    t = [1000.0]
+    c = FakeMqttClient()
+    m = ServiceMqtt("rfid", MqttSettings(heartbeat_s=0), client=c, clock=lambda: t[0])
+    m.start()
+    w = PairingWatch(m, lambda: True, lambda: "123-45-678", tmp_path)
+    w.check()
+    c.simulate_connect()
+    c.simulate_message("doorstation/rfid/pairing", b'{"ts": "2026-01-01T00:00:00.000+01:00", "paired": true}', retain=True)
+    t[0] += 1
+    w.check()
+    assert _pairing(c) == []

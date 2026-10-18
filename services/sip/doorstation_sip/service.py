@@ -55,13 +55,10 @@ class SipService:
         self.mqtt.subscribe(f"{BARESIP}/event", lambda t, p: self._queue.put(("baresip", p)))
         self.mqtt.subscribe(f"{BARESIP}/command_resp/+", lambda t, p: self._queue.put(("resp", (t, p))))
         self.mqtt.on_command(lambda d: self._queue.put(("cmd", d)))
-        self.mqtt.on_connected(lambda: self._queue.put(("republish", None)))
-        self._republish()
-
-    def _republish(self) -> None:
+        # Sent only if they differ from the broker's retained states (see publish_state).
+        # The registration follows with the first reginfo answer.
         self._publish_target()
         self._publish_call(self._last_call)
-        self.mqtt.publish_json("registration", {"state": self._registration}, retain=True)
 
     # --- main loop ------------------------------------------------------
     def step(self, timeout_s: float = 0.2) -> None:
@@ -97,8 +94,6 @@ class SipService:
                 self._reginfo(payload)
         elif kind == "cmd":
             self._command(data)
-        elif kind == "republish":
-            self._republish()
 
     # --- baresip --------------------------------------------------------
     def _send(self, command: str, params: str = "") -> str:
@@ -144,7 +139,7 @@ class SipService:
     def _set_registration(self, state: str) -> None:
         if state != self._registration:
             self._registration = state
-            self.mqtt.publish_json("registration", {"state": state}, retain=True)
+            self.mqtt.publish_state("registration", {"state": state})
 
     def _set_status(self, state: str) -> None:
         if state != self.mqtt.status:
@@ -163,10 +158,10 @@ class SipService:
     def _publish_call(self, e: CallState) -> None:
         data = {k: v for k, v in (("state", e.state), ("direction", e.direction),
                                   ("peer", e.peer), ("reason", e.reason)) if v is not None}
-        self.mqtt.publish_json("call", data, retain=True)
+        self.mqtt.publish_state("call", data)
 
     def _publish_target(self) -> None:
-        self.mqtt.publish_json("target", {"target": self.target}, retain=True)
+        self.mqtt.publish_state("target", {"target": self.target})
 
     # --- health ---------------------------------------------------------
     def _health(self) -> None:

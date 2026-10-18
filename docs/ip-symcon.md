@@ -57,6 +57,8 @@ All received topics appear in the **configurator** of the MQTT server instance a
 
 **States** (retained, QoS 1) are delivered after an outage. **Bell, RFID and DTMF events** (QoS 0) deliberately are **not** – a late bell must not open the garage in mail mode, for example, and a late `#` must not open the door. In addition, IP-Symcon should drop old events by `ts` (see 5).
 
+A restart of the Pi or of a service does not send unchanged states again – they keep their message and `ts`. Use events **"on change"** on state variables, not "on update": the bridge can deliver retained messages again when it reconnects to IP-Symcon.
+
 ## 4. Commands to the door station
 
 Create an **MQTT client device instance by hand** for each command topic (the configurator only shows received topics):

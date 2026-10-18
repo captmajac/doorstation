@@ -25,7 +25,7 @@ class Clock:
 
 def setup(tmp_path, target="**610", registered=True, restarts=None):
     c = FakeMqttClient()
-    m = ServiceMqtt("sip", MqttSettings(), client=c)
+    m = ServiceMqtt("sip", MqttSettings(), client=c, state_settle_s=0)
     m.start()
     c.simulate_connect()
     store = TargetStore(tmp_path / "target.json", "**701")
@@ -323,3 +323,22 @@ def first_reginfo_token_after(c, s):
         if t.startswith("/baresip/command/") and json.loads(p)["command"] == "reginfo":
             return json.loads(p)["token"]
     return None
+
+
+def test_restart_with_unchanged_states_sends_nothing(tmp_path):
+    clock = Clock()
+    c = FakeMqttClient()
+    m = ServiceMqtt("sip", MqttSettings(heartbeat_s=0), client=c, clock=clock)
+    store = TargetStore(tmp_path / "target.json", "**701")
+    store.save("**610")
+    s = SipService(CFG, m, store, clock=clock, wall=lambda: NOW.timestamp())
+    m.start()
+    s.start()
+    c.simulate_connect()
+    old = "2026-01-01T00:00:00.000+01:00"
+    for sub, data in (("target", {"target": "**610"}), ("call", {"state": "idle"})):
+        c.simulate_message(f"doorstation/sip/{sub}", json.dumps({"ts": old, **data}).encode(), retain=True)
+    clock.t += 1
+    s.step(0)
+    for sub in ("target", "call", "registration"):
+        assert msgs(c, f"doorstation/sip/{sub}") == [], sub

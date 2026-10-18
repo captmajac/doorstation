@@ -26,15 +26,12 @@ class SoundService:
     def start(self) -> None:
         # MQTT callbacks run in paho's thread: only enqueue, step() processes.
         self.mqtt.on_command(lambda d: self._inbox.put(("cmd", d)))
-        self.mqtt.on_connected(lambda: self._inbox.put(("republish", None)))
         for name in sorted(set(self.cfg.sounds) - set(self._names)):
             # Also to the home automation (sound/error), not only to the journal.
             self.mqtt.publish_error(f"Sound file missing: {name} ({self.cfg.sounds[name].file})")
-        self._republish()
-
-    def _republish(self) -> None:
-        self.mqtt.publish_json("available", {"names": self._names}, retain=True)
-        self.mqtt.publish_json("state", self._state, retain=True)
+        # Sent only if they differ from the broker's retained states (see publish_state).
+        self.mqtt.publish_state("available", {"names": self._names})
+        self.mqtt.publish_state("state", self._state)
 
     def step(self, timeout_s: float = 0.1) -> None:
         try:
@@ -62,12 +59,9 @@ class SoundService:
 
     def _set_state(self, state: dict) -> None:
         self._state = state
-        self.mqtt.publish_json("state", state, retain=True)
+        self.mqtt.publish_state("state", state)
 
     def _handle(self, kind: str, data) -> None:
-        if kind == "republish":
-            self._republish()
-            return
         action = data.get("action")
         if action == "play":
             self._play(data)

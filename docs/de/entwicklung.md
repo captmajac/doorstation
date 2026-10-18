@@ -16,7 +16,7 @@ services/
 └── rfid/                   doorstation_rfid: eigene Leseschleife, ID-Logik, HomeKit-Schloss
     └── doorstation_rfid/vendor/   kormax/apple-home-key-reader (unverändert, Apache-2.0)
 config-examples/            Beispielkonfigurationen für /etc/doorstation/
-deploy/                     systemd-Units, Mosquitto-, nftables-, PipeWire- und WirePlumber-Vorlagen
+deploy/                     systemd-Units, Mosquitto-, nftables- und PipeWire-Vorlagen
 install.sh                  Installation, Update, Sicherung
 scripts/pi-test.sh          Tests auf dem Raspberry Pi ausführen
 tests/                      Tests für install.sh, Sprach- und Doku-Prüfung

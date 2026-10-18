@@ -25,7 +25,7 @@ Lautsprecher/Mic←→│ sound ──┘   Audio: PipeWire + WebRTC-Echo-Cancel
 
 - Präfix aller Topics: `doorstation/` (einstellbar).
 - MQTT 3.1.1. Nutzdaten JSON (UTF-8) mit `ts` (ISO 8601 mit Zeitzone und Millisekunden, z. B. `2026-10-11T17:29:27.072+02:00`).
-- **Zustände** retained (QoS 1) – nach einem Neustart kennt die Hausautomation sofort den aktuellen Stand.
+- **Zustände** retained (QoS 1) – nach einem Neustart kennt die Hausautomation sofort den aktuellen Stand. Ein Zustand wird nur gesendet, wenn sich sein Inhalt ändert: Nach einem Neustart des Dienstes oder einer Wiederverbindung wird er mit der retained Nachricht des Brokers verglichen; ein unveränderter Zustand behält seine Nachricht samt `ts`.
 - **Ereignisse** nicht retained.
 - **Befehle** an `doorstation/<dienst>/cmd`. Ungültige Befehle → `doorstation/<dienst>/error` `{"ts","message"}`.
 - **Status** `doorstation/<dienst>/status`: Klartext `online` | `degraded` | `offline`, retained. `offline` setzt der Broker per Last Will. Der Status wird alle `heartbeat_s` (Vorgabe 300 s) aus der Hauptschleife wiederholt – bleibt die Wiederholung aus, hängt der Dienst.

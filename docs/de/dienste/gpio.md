@@ -47,7 +47,7 @@ Der Dienst nimmt keine Befehle entgegen.
 ## Verhalten
 
 - **Taster:** ein Ereignis pro Flanke; Festhalten erzeugt kein weiteres. Ereignisse innerhalb `min_interval_s` werden verworfen. `released` kommt nur, wenn das zugehörige Drücken gemeldet wurde.
-- **Zustand:** Beim Start und nach jeder Wiederverbindung werden alle Zustände retained gemeldet. Drosselung mit Nachlauf: der erste Wechsel sofort, weitere innerhalb `min_interval_s` erst danach – der gemeldete Zustand stimmt spätestens `min_interval_s` nach dem letzten Wechsel.
+- **Zustand:** wird retained gemeldet – beim Start und nach jeder Wiederverbindung nur, wenn er vom Stand im Broker abweicht. Drosselung mit Nachlauf: der erste Wechsel sofort, weitere innerhalb `min_interval_s` erst danach – der gemeldete Zustand stimmt spätestens `min_interval_s` nach dem letzten Wechsel.
 - **Ohne MQTT-Verbindung** werden Tastendrücke verworfen (eine verspätete Klingel wäre schlimmer als keine); Zustände werden nach der Wiederverbindung nachgemeldet.
 
 ## Testen ohne Hardware

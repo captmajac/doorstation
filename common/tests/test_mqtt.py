@@ -167,3 +167,133 @@ def test_client_id_suffix_for_parallel_instances():
     from doorstation_common.mqtt import ServiceMqtt
     m = ServiceMqtt("gpio", MqttSettings(), client_id_suffix="-sim")
     assert m._client._client_id == b"doorstation-gpio-sim"
+
+
+# --- retained states: only sent when the content changes (not on every restart) ---
+
+FLAP = "doorstation/gpio/input/mail_flap"
+
+
+def make_states(settle=1.0):
+    c = FakeMqttClient()
+    t = [1000.0]
+    m = ServiceMqtt("gpio", MqttSettings(heartbeat_s=0), client=c, clock=lambda: t[0], state_settle_s=settle)
+    m.start()
+    return m, c, t
+
+
+def states(c, topic=FLAP):
+    return [(p, r) for tp, p, q, r in c.published if tp == topic]
+
+
+def retained_msg(state, ts="2026-01-01T00:00:00.000+01:00"):
+    return json.dumps({"ts": ts, "state": state}).encode()
+
+
+def test_state_waits_for_retained_then_publishes_when_broker_has_none():
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "closed"})
+    c.simulate_connect()
+    assert FLAP in c.subscriptions          # learns what the broker holds
+    m.heartbeat()
+    assert states(c) == []                  # retained messages may still be arriving
+    t[0] += 1.0
+    m.heartbeat()
+    (payload, retain), = states(c)
+    assert json.loads(payload)["state"] == "closed" and retain is True
+
+
+def test_state_unchanged_against_broker_is_not_sent_again():
+    # Restart: the broker still holds "closed" - sending it again with a new ts would
+    # make the home automation see a change.
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "closed"})
+    c.simulate_connect()
+    c.simulate_message(FLAP, retained_msg("closed"), retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    assert states(c) == []
+
+
+def test_state_differing_from_broker_is_sent_with_time_of_change():
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "open"})
+    c.simulate_connect()
+    c.simulate_message(FLAP, retained_msg("closed"), retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    (payload, _), = states(c)
+    assert json.loads(payload)["state"] == "open"
+
+
+def test_state_after_sync_sent_immediately_only_on_change():
+    m, c, t = make_states()
+    c.simulate_connect()
+    m.publish_state("input/mail_flap", {"state": "closed"})
+    c.simulate_message(FLAP, retained_msg("closed"), retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    assert states(c) == []
+    m.publish_state("input/mail_flap", {"state": "open"})
+    m.publish_state("input/mail_flap", {"state": "open"})
+    assert [json.loads(p)["state"] for p, _ in states(c)] == ["open"]
+
+
+def test_new_state_topic_after_connect_is_synced_too():
+    m, c, t = make_states()
+    c.simulate_connect()
+    t[0] += 5
+    m.publish_state("input/mail_flap", {"state": "closed"})
+    assert FLAP in c.subscriptions and states(c) == []
+    c.simulate_message(FLAP, retained_msg("closed"), retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    assert states(c) == []
+
+
+def test_reconnect_resends_only_what_the_broker_lost_unchanged():
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "open"})
+    c.simulate_connect()
+    t[0] += 1.0
+    m.heartbeat()
+    (first, _), = states(c)
+    c.simulate_connect()                    # broker kept it
+    c.simulate_message(FLAP, first.encode(), retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    assert len(states(c)) == 1
+    c.simulate_connect()                    # broker lost it (no retained message)
+    t[0] += 1.0
+    m.heartbeat()
+    assert [p for p, _ in states(c)] == [first, first]   # same ts: no new change
+
+
+def test_state_not_sent_while_disconnected():
+    m, c, t = make_states()
+    c.connected = False
+    m.publish_state("input/mail_flap", {"state": "open"})
+    t[0] += 5
+    m.heartbeat()
+    assert states(c) == []
+
+
+def test_live_echo_of_state_does_not_count_as_broker_state():
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "open"})
+    c.simulate_connect()
+    c.simulate_message(FLAP, retained_msg("open"), retain=False)   # not retained
+    t[0] += 1.0
+    m.heartbeat()
+    assert len(states(c)) == 1
+
+
+def test_broker_state_that_is_no_json_object_counts_as_different():
+    m, c, t = make_states()
+    m.publish_state("input/mail_flap", {"state": "open"})
+    c.simulate_connect()
+    c.simulate_message(FLAP, b"open", retain=True)
+    t[0] += 1.0
+    m.heartbeat()
+    assert len(states(c)) == 1
+    assert not [p for tp, p, *_ in c.published if tp.endswith("/error")]

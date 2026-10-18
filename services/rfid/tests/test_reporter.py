@@ -17,7 +17,7 @@ class Clock:
 
 def make(**kw):
     c = FakeMqttClient()
-    m = ServiceMqtt("rfid", MqttSettings(), client=c)
+    m = ServiceMqtt("rfid", MqttSettings(), client=c, state_settle_s=0)
     m.start()
     c.simulate_connect()
     clock = Clock()

@@ -95,6 +95,6 @@ echo_cancel:
   enabled: true              # false: input/output directly on the card
 ```
 
-Only these values count: WirePlumber is configured not to restore stored volumes over them (`deploy/wireplumber/51-doorstation-volumes.conf`).
+`doorstation-audio-init` sets these values before every start of baresip; WirePlumber stores them and restores them after a restart. PipeWire runs for the `doorstation` user only (`ConditionUser=` drop-ins under `/etc/systemd/user/`): a login session, e.g. via SSH, would otherwise start its own PipeWire, take over the sound card and set the speaker to 40 %. This takes effect with the next login – after the first installation, log out of running sessions once.
 
 Another USB stick only needs adjusted control names. Tuning the sound: vary levels, `auto_gain_control` and the speaker/microphone position, then `sudo systemctl restart doorstation-baresip`.

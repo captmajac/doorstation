@@ -19,7 +19,7 @@ def setup(tmp_path):
         "absent": SoundEntry("absent", tmp_path / "absent.wav", None),
     })
     c = FakeMqttClient()
-    m = ServiceMqtt("sound", MqttSettings(), client=c)
+    m = ServiceMqtt("sound", MqttSettings(), client=c, state_settle_s=0)
     m.start()
     c.simulate_connect()
     p = FakePlayer()
@@ -132,3 +132,21 @@ def test_old_sound_name_rejected_with_name(tmp_path):
     msg = last(c, "doorstation/sound/error")["message"]
     assert "old_door_sound" in msg and "unknown" in msg
     assert p.started == []
+
+
+def test_restart_with_unchanged_states_sends_nothing(tmp_path):
+    (tmp_path / "beep.wav").write_bytes(b"RIFF")
+    cfg = SoundConfig(MqttSettings(), default_volume=0.8, sounds={"beep": SoundEntry("beep", tmp_path / "beep.wav", 0.6)})
+    t = [1000.0]
+    c = FakeMqttClient()
+    m = ServiceMqtt("sound", MqttSettings(heartbeat_s=0), client=c, clock=lambda: t[0])
+    s = SoundService(cfg, m, PlayQueue(FakePlayer(), 3, 120))
+    m.start()
+    s.start()
+    c.simulate_connect()
+    old = "2026-01-01T00:00:00.000+01:00"
+    c.simulate_message("doorstation/sound/available", json.dumps({"ts": old, "names": ["beep"]}).encode(), retain=True)
+    c.simulate_message("doorstation/sound/state", json.dumps({"ts": old, "state": "idle"}).encode(), retain=True)
+    t[0] += 1
+    s.step(0)
+    assert last(c, "doorstation/sound/available") is None and last(c, "doorstation/sound/state") is None

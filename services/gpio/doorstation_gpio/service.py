@@ -1,7 +1,6 @@
 """Connects input logic, hardware backend and MQTT."""
 
 import logging
-import threading
 import time
 from collections.abc import Callable
 
@@ -22,7 +21,6 @@ class GpioService:
         self.mqtt = mqtt
         self.buttons: dict[str, ButtonInput] = {}
         self.states: dict[str, StateInput] = {}
-        self._republish_due = threading.Event()
         for inp in cfg.inputs:
             if inp.kind == "button":
                 self.buttons[inp.name] = ButtonInput(inp, clock)
@@ -34,18 +32,11 @@ class GpioService:
             button.initial(self.backend.read(name))
         for name, state in self.states.items():
             state.initial(self.backend.read(name))
-        self.republish()
-        # Runs in paho's network thread: only flag it, step() publishes.
-        self.mqtt.on_connected(self._republish_due.set)
-
-    def republish(self) -> None:
+        # Sent only if it differs from the broker's retained state (see publish_state).
         for name, state in self.states.items():
             self._publish_state(name, state.current)
 
     def step(self, timeout_s: float = 0.2) -> None:
-        if self._republish_due.is_set():
-            self._republish_due.clear()
-            self.republish()
         for edge in self.backend.wait_edges(timeout_s):
             if edge.name in self.buttons:
                 button = self.buttons[edge.name]
@@ -73,4 +64,4 @@ class GpioService:
             self.mqtt.publish_json_abs(("event", "ring"), {"source": name})
 
     def _publish_state(self, name: str, state: str) -> None:
-        self.mqtt.publish_json(f"input/{name}", {"state": state}, retain=True)
+        self.mqtt.publish_state(f"input/{name}", {"state": state})

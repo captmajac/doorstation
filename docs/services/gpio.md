@@ -47,7 +47,7 @@ The service accepts no commands.
 ## Behavior
 
 - **Button:** one event per edge; holding it produces no further event. Events within `min_interval_s` are dropped. `released` only comes if the matching press was reported.
-- **State:** at start and after every reconnect all states are reported retained. Throttling with a trailing update: the first change immediately, further changes within `min_interval_s` only afterwards – the reported state is correct at the latest `min_interval_s` after the last change.
+- **State:** reported retained – at start and after every reconnect only if it differs from the state the broker holds. Throttling with a trailing update: the first change immediately, further changes within `min_interval_s` only afterwards – the reported state is correct at the latest `min_interval_s` after the last change.
 - **Without an MQTT connection** button presses are dropped (a late ring would be worse than none); states are reported after reconnecting.
 
 ## Testing without hardware

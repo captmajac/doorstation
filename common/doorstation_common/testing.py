@@ -43,5 +43,5 @@ class FakeMqttClient:
     def simulate_connect(self) -> None:
         self.on_connect(self, None, None, 0, None)
 
-    def simulate_message(self, topic: str, payload: bytes) -> None:
-        self.on_message(self, None, SimpleNamespace(topic=topic, payload=payload))
+    def simulate_message(self, topic: str, payload: bytes, retain: bool = False) -> None:
+        self.on_message(self, None, SimpleNamespace(topic=topic, payload=payload, retain=retain))

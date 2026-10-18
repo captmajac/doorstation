@@ -57,6 +57,8 @@ Im **Konfigurator** der MQTT-Server-Instanz erscheinen alle empfangenen Topics u
 
 **Zustände** (retained, QoS 1) werden nach einem Ausfall nachgeliefert. **Klingel-, RFID- und DTMF-Ereignisse** (QoS 0) bewusst **nicht** – eine verspätete Klingel soll z. B. im Post-Modus nicht die Garage öffnen, ein verspätetes `#` nicht die Tür. Zusätzlich sollte IP-Symcon alte Ereignisse per `ts` verwerfen (siehe 5).
 
+Ein Neustart des Pi oder eines Dienstes sendet unveränderte Zustände nicht erneut – sie behalten ihre Nachricht samt `ts`. Ereignisse auf Zustandsvariablen **„bei Änderung“** anlegen, nicht „bei Aktualisierung“: Die Bridge kann retained Nachrichten bei einer Wiederverbindung zu IP-Symcon erneut ausliefern.
+
 ## 4. Befehle an die Türstation
 
 Für jedes Befehlstopic eine **MQTT-Client-Geräteinstanz von Hand** anlegen (der Konfigurator zeigt nur empfangene Topics):

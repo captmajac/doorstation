@@ -15,7 +15,7 @@ CFG = GpioConfig(MqttSettings(), "/dev/null", (
 
 def setup():
     c = FakeMqttClient()
-    m = ServiceMqtt("gpio", MqttSettings(), client=c)
+    m = ServiceMqtt("gpio", MqttSettings(), client=c, state_settle_s=0)
     m.start()
     c.simulate_connect()
     b = FakeBackend({"bell": False, "mail_flap": True})
@@ -84,7 +84,7 @@ def test_republish_after_reconnect_runs_in_main_loop_not_network_thread():
 def test_bell_release_published_but_no_ring():
     cfg = GpioConfig(MqttSettings(), "/dev/null", (InputConfig("bell", 9, "button", ring=True, report_release=True),))
     c = FakeMqttClient()
-    m = ServiceMqtt("gpio", MqttSettings(), client=c)
+    m = ServiceMqtt("gpio", MqttSettings(), client=c, state_settle_s=0)
     m.start(); c.simulate_connect()
     b = FakeBackend({"bell": False})
     s = GpioService(cfg, b, m)
@@ -99,10 +99,27 @@ def test_bell_release_published_but_no_ring():
 def test_step_sends_heartbeat():
     t = [1000.0]
     c = FakeMqttClient()
-    m = ServiceMqtt("gpio", MqttSettings(heartbeat_s=300), client=c, clock=lambda: t[0])
+    m = ServiceMqtt("gpio", MqttSettings(heartbeat_s=300), client=c, clock=lambda: t[0], state_settle_s=0)
     m.start(); c.simulate_connect()
     s = GpioService(CFG, FakeBackend({"bell": False, "mail_flap": True}), m)
     s.start(); c.published.clear()
     t[0] += 300
     s.step(0)
     assert ("doorstation/gpio/status", "online", 1, True) in c.published
+
+
+def test_restart_with_unchanged_state_sends_nothing():
+    # The broker still holds the state: sending it again with a new ts would trigger the
+    # home automation's "on change" events although nothing happened.
+    t = [1000.0]
+    c = FakeMqttClient()
+    m = ServiceMqtt("gpio", MqttSettings(heartbeat_s=0), client=c, clock=lambda: t[0])
+    m.start()
+    s = GpioService(CFG, FakeBackend({"bell": False, "mail_flap": True}), m)
+    s.start()
+    c.simulate_connect()
+    c.simulate_message("doorstation/gpio/input/mail_flap",
+                       b'{"ts": "2026-01-01T00:00:00.000+01:00", "state": "open"}', retain=True)
+    t[0] += 1
+    s.step(0)
+    assert msgs(c, "doorstation/gpio/input/mail_flap") == []
