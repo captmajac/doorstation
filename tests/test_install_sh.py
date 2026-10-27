@@ -243,3 +243,11 @@ def test_wireplumber_keeps_restoring_volumes(tmp_path):
     script = f'remove_audio_conf "{old}"; echo "rc=$?"; remove_audio_conf "{old}"; echo "rc=$?"'
     assert bash(script, tmp_path).stdout.split() == ["rc=0", "rc=1"]
     assert not old.exists()
+
+
+def test_alsa_headroom_against_crackling():
+    # Raspberry Pi 3: USB and Ethernet share one bus, small transfers arrive late now and
+    # then - the speaker crackles. More buffer between PipeWire and the USB card.
+    conf = (TEMPLATE_DIR / "deploy" / "wireplumber" / "50-doorstation-alsa.conf").read_text()
+    assert "api.alsa.headroom = 1024" in conf
+    assert 'deploy/wireplumber/50-doorstation-alsa.conf' in INSTALL.read_text()

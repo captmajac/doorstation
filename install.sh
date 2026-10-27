@@ -276,6 +276,8 @@ install_audio() {
   [ -S "/run/user/$uid/bus" ] || die "user manager of $SVC_USER is not running"
   local changed=0
   install_audio_conf "$SRC/deploy/pipewire/60-echo-cancel.conf" "$VAR/.config/pipewire/pipewire.conf.d" && changed=1
+  install_audio_conf "$SRC/deploy/wireplumber/50-doorstation-alsa.conf" \
+    "$VAR/.config/wireplumber/wireplumber.conf.d" && changed=1
   # Up to 2026-10: WirePlumber then set its default volumes on every restart.
   remove_audio_conf "$VAR/.config/wireplumber/wireplumber.conf.d/51-doorstation-volumes.conf" && changed=1
   install_pipewire_service_user_only && user_systemctl daemon-reload

@@ -79,7 +79,7 @@ idle ──Klingel/call──→ calling ──abgenommen──→ active ──
 
 ## Audio
 
-PipeWire läuft als Benutzerdienst von `doorstation` mit dem WebRTC-Echo-Cancel-Modul (`deploy/pipewire/60-echo-cancel.conf`: Echo- und Rauschunterdrückung, Pegelregelung, Hochpass). Es stellt `ec_sink`/`ec_source` bereit; baresip und der Sound-Dienst nutzen diese. Die Onboard-Audioausgänge sind abgeschaltet, die USB-Karte ist das einzige Audiogerät.
+PipeWire läuft als Benutzerdienst von `doorstation` mit dem WebRTC-Echo-Cancel-Modul (`deploy/pipewire/60-echo-cancel.conf`: Echo- und Rauschunterdrückung, Pegelregelung, Hochpass). Es stellt `ec_sink`/`ec_source` bereit; baresip und der Sound-Dienst nutzen diese. Die Onboard-Audioausgänge sind abgeschaltet, die USB-Karte ist das einzige Audiogerät. WirePlumber hält mehr Puffer zur USB-Karte (`deploy/wireplumber/50-doorstation-alsa.conf`, `api.alsa.headroom = 1024`): Beim Raspberry Pi 3 teilen sich USB und Ethernet einen Bus, ohne den Puffer kratzt der Lautsprecher ab und zu.
 
 Vor jedem Start von baresip setzt `doorstation-audio-init` Schalter und Pegel aus `/etc/doorstation/audio.yaml`:
 
