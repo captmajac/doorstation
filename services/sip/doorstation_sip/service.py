@@ -161,7 +161,8 @@ class SipService:
         self.mqtt.publish_state("call", data)
 
     def _publish_target(self) -> None:
-        self.mqtt.publish_state("target", {"target": self.target})
+        # "muted" as well: home automations that split the JSON into variables may drop null
+        self.mqtt.publish_state("target", {"target": self.target, "muted": self.target is None})
 
     # --- health ---------------------------------------------------------
     def _health(self) -> None:

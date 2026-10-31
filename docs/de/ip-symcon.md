@@ -52,7 +52,7 @@ Im **Konfigurator** der MQTT-Server-Instanz erscheinen alle empfangenen Topics u
 | `doorstation/gpio/input/mail_door` | Zustand | `{"ts","state":"closed"\|"open"}` | Kastentür → „Post entnommen“ |
 | `doorstation/sip/call` | Zustand | `{"ts","state","direction","peer","reason"}` | Gesprächsstatus |
 | `doorstation/sip/dtmf` | Ereignis, **QoS 0** | `{"ts","key":"#"}` | `#` → Türöffner, `*` → Licht (nur im Gespräch gemeldet) |
-| `doorstation/sip/target` | Zustand | `{"ts","target":"**701"\|null}` | aktuelles Anrufziel / stumm |
+| `doorstation/sip/target` | Zustand | `{"ts","target":"**701"\|null,"muted"}` | aktuelles Anrufziel / stumm; bei aufgeteilten Variablen `muted` nutzen (ein aufgeteiltes `target` übernimmt `null` evtl. nicht) |
 | `doorstation/rfid/read` | Ereignis, **QoS 0** | `{"ts","type","id"}` | Zutrittsentscheidung |
 
 **Zustände** (retained, QoS 1) werden nach einem Ausfall nachgeliefert. **Klingel-, RFID- und DTMF-Ereignisse** (QoS 0) bewusst **nicht** – eine verspätete Klingel soll z. B. im Post-Modus nicht die Garage öffnen, ein verspätetes `#` nicht die Tür. Zusätzlich sollte IP-Symcon alte Ereignisse per `ts` verwerfen (siehe 5).
@@ -164,6 +164,15 @@ echo $meldung;
 ```
 
 Fällt der ganze Pi aus, meldet der IP-Symcon-Broker `$SYS/broker/connection/doorstation-bridge/state` = `0` – als erste Prüfung im Skript ergänzen (`!== '1'`).
+
+## 7. IP-Symcon-Module
+
+Statt eigener Skripte gehen auch die Module aus [symcon-doorstation](https://github.com/captmajac/symcon-doorstation) (*Kern-Instanzen → Module → Hinzufügen* mit der URL des Repos). Sie verweisen auf die MQTT-Client-Variablen aus Abschnitt 3:
+
+- **Türstation Zutritt**: entscheidet über den Zutritt von RFID-Karten, AirTags und Apple Home Key mit einem Wochenplan je Schlüssel, führt dein Skript zum Türöffnen aus und zeigt die letzten Zutritte.
+- **Türstation Klingel**: Klingelton stumm/ein (`set_target`, Rückmeldung über `muted` von `doorstation/sip/target`), die letzten Klingeln, Bewegung und Briefkasten (Post/Zeitung mit Skript zur Benachrichtigung).
+
+Beide bringen eine Kachel für die Kachel-Visualisierung und Variablen fürs alte WebFront mit.
 
 ## Quellen
 

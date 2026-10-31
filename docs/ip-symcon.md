@@ -52,7 +52,7 @@ All received topics appear in the **configurator** of the MQTT server instance a
 | `doorstation/gpio/input/mail_door` | state | `{"ts","state":"closed"\|"open"}` | mailbox door → "mail collected" |
 | `doorstation/sip/call` | state | `{"ts","state","direction","peer","reason"}` | call status |
 | `doorstation/sip/dtmf` | event, **QoS 0** | `{"ts","key":"#"}` | `#` → door opener, `*` → light (only reported during a call) |
-| `doorstation/sip/target` | state | `{"ts","target":"**701"\|null}` | current call target / muted |
+| `doorstation/sip/target` | state | `{"ts","target":"**701"\|null,"muted"}` | current call target / muted; with split variables use `muted` (a split `target` may not take `null`) |
 | `doorstation/rfid/read` | event, **QoS 0** | `{"ts","type","id"}` | access decision |
 
 **States** (retained, QoS 1) are delivered after an outage. **Bell, RFID and DTMF events** (QoS 0) deliberately are **not** – a late bell must not open the garage in mail mode, for example, and a late `#` must not open the door. In addition, IP-Symcon should drop old events by `ts` (see 5).
@@ -164,6 +164,15 @@ echo $message;
 ```
 
 If the whole Pi fails, the IP-Symcon broker reports `$SYS/broker/connection/doorstation-bridge/state` = `0` – add this as the first check in the script (`!== '1'`).
+
+## 7. IP-Symcon modules
+
+Instead of your own scripts you can use the modules of [symcon-doorstation](https://github.com/captmajac/symcon-doorstation) (*Kernel → Modules → Add* with the repository URL). They refer to the MQTT client variables from section 3:
+
+- **Doorstation Access**: decides on access for RFID cards, AirTags and Apple Home Key with a weekly schedule per key, runs your door opener script and shows the last accesses.
+- **Doorstation Bell**: ringtone muted/on (`set_target`, feedback from `muted` of `doorstation/sip/target`), the last rings, motion and the mailbox (mail/newspaper with a notification script).
+
+Both come with a tile for the tile visualization and variables for the old WebFront.
 
 ## Sources
 

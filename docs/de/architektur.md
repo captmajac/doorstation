@@ -40,7 +40,7 @@ Lautsprecher/Mic←→│ sound ──┘   Audio: PipeWire + WebRTC-Echo-Cancel
 | `doorstation/gpio/input/<name>` | Zustand bzw. Ereignis | Zustand: `{"ts","state":"open"}`; Taster: `{"ts","event":"pressed"\|"released"}` |
 | `doorstation/sip/registration` | Zustand | `{"ts","state":"registered"\|"failed"\|"unknown"}` |
 | `doorstation/sip/call` | Zustand | `{"ts","state":"idle"\|"calling"\|"active"\|"ended","direction","peer","reason"}` |
-| `doorstation/sip/target` | Zustand | `{"ts","target":"**701"}` bzw. `null` (stumm) |
+| `doorstation/sip/target` | Zustand | `{"ts","target":"**701","muted":false}`, stumm: `"target":null,"muted":true` |
 | `doorstation/sip/dtmf` | Ereignis | `{"ts","key":"#"}` |
 | `doorstation/sip/cmd` | Befehl | `call`, `hangup`, `set_target` |
 | `doorstation/sound/state` | Zustand | `{"ts","state":"playing","name"}` bzw. `{"ts","state":"idle"}` |

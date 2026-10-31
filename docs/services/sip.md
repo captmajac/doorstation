@@ -39,7 +39,7 @@ The target set via `set_target` is stored in `/var/lib/doorstation/sip/target.js
 | Topic | Content |
 |---|---|
 | `doorstation/sip/call` (retained) | `{"ts","state","direction","peer","reason"}` |
-| `doorstation/sip/target` (retained) | `{"ts","target":"**701"}` or `null` |
+| `doorstation/sip/target` (retained) | `{"ts","target":"**701","muted":false}` or muted `{"ts","target":null,"muted":true}` – `muted` for home automations that split the JSON into variables and lose `null` |
 | `doorstation/sip/registration` (retained) | `registered` / `failed` / `unknown` |
 | `doorstation/sip/dtmf` | `{"ts","key":"#"}` |
 | `doorstation/sip/status` | `online` / `degraded` (not registered or baresip not responding) / `offline` |

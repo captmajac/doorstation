@@ -39,7 +39,7 @@ Das per `set_target` gesetzte Ziel wird in `/var/lib/doorstation/sip/target.json
 | Topic | Inhalt |
 |---|---|
 | `doorstation/sip/call` (retained) | `{"ts","state","direction","peer","reason"}` |
-| `doorstation/sip/target` (retained) | `{"ts","target":"**701"}` bzw. `null` |
+| `doorstation/sip/target` (retained) | `{"ts","target":"**701","muted":false}` bzw. stumm `{"ts","target":null,"muted":true}` – `muted` für Hausautomationen, die das JSON in Einzelvariablen aufteilen und `null` verlieren |
 | `doorstation/sip/registration` (retained) | `registered` / `failed` / `unknown` |
 | `doorstation/sip/dtmf` | `{"ts","key":"#"}` |
 | `doorstation/sip/status` | `online` / `degraded` (nicht angemeldet bzw. baresip antwortet nicht) / `offline` |

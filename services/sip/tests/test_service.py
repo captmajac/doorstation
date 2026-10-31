@@ -83,6 +83,19 @@ def test_set_target_null_mutes_and_persists(tmp_path):
     assert cmds(c) == []
 
 
+def test_target_state_reports_muted(tmp_path):
+    # a boolean survives home automations that split the JSON into variables and drop null
+    c, s, clock = setup(tmp_path)
+    cmd(c, action="set_target", target=None)
+    s.step(0)
+    last = msgs(c, "doorstation/sip/target")[-1]
+    assert last["target"] is None and last["muted"] is True
+    cmd(c, action="set_target", target="**701")
+    s.step(0)
+    last = msgs(c, "doorstation/sip/target")[-1]
+    assert last["target"] == "**701" and last["muted"] is False
+
+
 def test_invalid_target_rejected(tmp_path):
     c, s, clock = setup(tmp_path)
     cmd(c, action="set_target", target="12a")
@@ -336,7 +349,7 @@ def test_restart_with_unchanged_states_sends_nothing(tmp_path):
     s.start()
     c.simulate_connect()
     old = "2026-01-01T00:00:00.000+01:00"
-    for sub, data in (("target", {"target": "**610"}), ("call", {"state": "idle"})):
+    for sub, data in (("target", {"target": "**610", "muted": False}), ("call", {"state": "idle"})):
         c.simulate_message(f"doorstation/sip/{sub}", json.dumps({"ts": old, **data}).encode(), retain=True)
     clock.t += 1
     s.step(0)

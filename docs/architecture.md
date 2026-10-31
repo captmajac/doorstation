@@ -40,7 +40,7 @@ Speaker/mic     ←→│ sound ──┘   Audio: PipeWire + WebRTC echo cancel
 | `doorstation/gpio/input/<name>` | state or event | state: `{"ts","state":"open"}`; button: `{"ts","event":"pressed"\|"released"}` |
 | `doorstation/sip/registration` | state | `{"ts","state":"registered"\|"failed"\|"unknown"}` |
 | `doorstation/sip/call` | state | `{"ts","state":"idle"\|"calling"\|"active"\|"ended","direction","peer","reason"}` |
-| `doorstation/sip/target` | state | `{"ts","target":"**701"}` or `null` (muted) |
+| `doorstation/sip/target` | state | `{"ts","target":"**701","muted":false}`, muted: `"target":null,"muted":true` |
 | `doorstation/sip/dtmf` | event | `{"ts","key":"#"}` |
 | `doorstation/sip/cmd` | command | `call`, `hangup`, `set_target` |
 | `doorstation/sound/state` | state | `{"ts","state":"playing","name"}` or `{"ts","state":"idle"}` |
